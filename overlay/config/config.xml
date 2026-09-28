@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- /product/overlay/config/config.xml
+     Static base overlays are immutable+enabled. Palette overlays are mutable and
+     start disabled except the default theme; OmarchyTheme flips them with
+     OverlayManager.setEnabledExclusiveInCategory(). -->
+<config>
+    <overlay package="org.omarchy.overlay.framework" mutable="false" enabled="true" />
+    <overlay package="org.omarchy.overlay.systemui"  mutable="false" enabled="true" />
+    <overlay package="org.omarchy.overlay.shape"     mutable="true"  enabled="true" />
+    <overlay package="org.omarchy.overlay.font"      mutable="true"  enabled="true" />
+    <overlay package="org.omarchy.palette.tokyonight" mutable="true" enabled="true" />
+</config>

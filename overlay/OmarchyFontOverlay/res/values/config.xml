@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Family names must exist in fonts/fonts_customization.xml (new-named-family) -->
+    <string name="config_headlineFontFamily" translatable="false">jetbrains-mono-nerd</string>
+    <string name="config_headlineFontFamilyMedium" translatable="false">jetbrains-mono-nerd-medium</string>
+    <string name="config_bodyFontFamily" translatable="false">jetbrains-mono-nerd</string>
+    <string name="config_bodyFontFamilyMedium" translatable="false">jetbrains-mono-nerd-medium</string>
+</resources>

@@ -1,0 +1,11 @@
+# adevtool config for tegu (Pixel 9a).
+# Usage from the GrapheneOS tree root:
+#   vendor/adevtool/bin/run generate-all -d vendor/omarchy/adevtool/tegu.yml
+# adevtool resolves `includes` relative to THIS file and concatenates arrays
+# (src/config/config-loader.ts), so the upstream config is untouched.
+includes:
+  - ../../adevtool/config/device/tegu.yml
+
+platform:
+  extra_product_makefiles:
+    - vendor/omarchy/omarchy.mk

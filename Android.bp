@@ -1,0 +1,2 @@
+// vendor/omarchy — root. Modules are declared in overlay/**, apps/** and fonts/.
+// Keep this file empty on purpose: Soong only needs it to treat the tree as a build root.

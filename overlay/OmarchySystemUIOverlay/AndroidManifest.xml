@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.omarchy.overlay.systemui">
+    <application android:hasCode="false" />
+    <!-- Theme-independent SystemUI geometry: QS pills, status bar, notification shade.
+         Colors come from the palette overlays (system_* tokens), never hardcoded here. -->
+    <overlay android:targetPackage="com.android.systemui"
+        android:isStatic="true"
+        android:priority="100" />
+</manifest>

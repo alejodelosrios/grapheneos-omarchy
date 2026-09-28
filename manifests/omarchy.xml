@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copy to .repo/local_manifests/omarchy.xml, then `repo sync vendor/omarchy` -->
+<manifest>
+  <remote name="omarchy-github" fetch="https://github.com/alejodelosrios/" />
+  <project name="grapheneos-omarchy" path="vendor/omarchy" remote="omarchy-github" revision="main" />
+</manifest>

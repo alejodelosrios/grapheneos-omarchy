@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Installed to /product/etc/fonts_customization.xml; TTFs to /product/fonts/ (SystemFonts.java OEM_FONT_DIR).
+     Put JetBrainsMonoNerdFont-{Regular,Medium,Bold}.ttf next to this file (OFL-1.1 + MIT, see docs/research.md §5). -->
+<fonts-modification version="1">
+    <family customizationType="new-named-family" name="jetbrains-mono-nerd">
+        <font weight="400" style="normal">JetBrainsMonoNerdFont-Regular.ttf</font>
+        <font weight="700" style="normal">JetBrainsMonoNerdFont-Bold.ttf</font>
+    </family>
+    <family customizationType="new-named-family" name="jetbrains-mono-nerd-medium">
+        <font weight="500" style="normal">JetBrainsMonoNerdFont-Medium.ttf</font>
+    </family>
+</fonts-modification>

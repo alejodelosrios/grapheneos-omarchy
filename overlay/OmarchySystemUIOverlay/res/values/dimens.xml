@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Hyprland-style rounding (8-12px) instead of Material pills (28dp).
+         Verified: packages/SystemUI/res/values/dimens.xml:355 and :705 (GrapheneOS 17). -->
+    <dimen name="notification_corner_radius">12dp</dimen>
+    <dimen name="qs_corner_radius">12dp</dimen>
+    <!-- Tighter shade, Waybar-like density (dimens.xml:809, :706, :734) -->
+    <dimen name="notification_shade_content_margin_horizontal">12dp</dimen>
+    <dimen name="qs_tile_margin_horizontal">6dp</dimen>
+    <dimen name="qs_panel_padding">12dp</dimen>
+</resources>

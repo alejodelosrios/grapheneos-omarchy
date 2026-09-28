@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.omarchy.theme"
+    android:sharedUserId="android.uid.system">
+
+    <uses-permission android:name="android.permission.CHANGE_OVERLAY_PACKAGES" />
+    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <uses-permission android:name="android.permission.MODIFY_DAY_NIGHT_MODE" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+
+    <!-- Third-party apps read the current theme through this permission-less provider. -->
+    <application android:label="Omarchy Theme" android:persistent="false">
+        <provider
+            android:name=".ThemeProvider"
+            android:authorities="org.omarchy.theme"
+            android:exported="true" />
+        <activity android:name=".ThemePickerActivity" android:exported="true"
+            android:label="Theme" android:theme="@android:style/Theme.DeviceDefault.DayNight">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <service android:name=".ThemeTileService" android:exported="true"
+            android:label="Omarchy theme"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

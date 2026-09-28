@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.omarchy.overlay.framework">
+    <application android:hasCode="false" />
+    <!-- Theme-independent framework tweaks. No <overlayable> in framework 17 core/res,
+         so a preinstalled product overlay may override any resource. -->
+    <overlay android:targetPackage="android"
+        android:isStatic="true"
+        android:priority="100" />
+</manifest>

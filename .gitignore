@@ -1,0 +1,20 @@
+# AOSP build outputs (never live in this repo, but protect against accidents)
+out/
+*.img
+*.zip
+!bootanimation/README.md
+# Signing keys and releases — NEVER commit
+keys/
+releases/
+*.pem
+*.pk8
+*.x509.pem
+avb_pkmd.bin
+# Generated palettes (rebuilt by tools/gen-palette.py; commit only tokyo-night as reference)
+overlay/themes/*/*/res/values/colors.xml
+!overlay/themes/tokyo-night/**/colors.xml
+# Editor / OS
+.idea/
+*.iml
+.DS_Store
+__pycache__/

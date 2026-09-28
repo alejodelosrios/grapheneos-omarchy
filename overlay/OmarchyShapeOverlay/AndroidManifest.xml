@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.omarchy.overlay.shape">
+    <application android:hasCode="false" />
+    <!-- Same category ThemePicker/SystemUI use for icon shape, so the stock picker still works. -->
+    <overlay android:targetPackage="android"
+        android:category="android.theme.customization.adaptive_icon_shape"
+        android:priority="10" />
+</manifest>

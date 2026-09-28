@@ -1,0 +1,19 @@
+android_app {
+    name: "OmarchyTheme",
+    srcs: ["src/**/*.kt"],
+    resource_dirs: ["res"],
+    product_specific: true,
+    privileged: true,
+    certificate: "platform",
+    platform_apis: true,   // OverlayManager / UiModeManager.setNightMode are @SystemApi
+    required: ["privapp-permissions-org.omarchy.theme"],
+    optimize: { enabled: false },
+}
+
+prebuilt_etc {
+    name: "privapp-permissions-org.omarchy.theme",
+    src: "privapp-permissions-org.omarchy.theme.xml",
+    sub_dir: "permissions",
+    product_specific: true,
+    filename_from_src: true,
+}

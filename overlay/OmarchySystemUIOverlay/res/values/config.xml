@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 1dp outline on QS tiles = Omarchy window/mako border. -1dp (stock) disables it.
+         Verified: packages/SystemUI/res/values/config.xml:374-375 (GrapheneOS 17). -->
+    <dimen name="config_qsTileStrokeWidthActive">1dp</dimen>
+    <dimen name="config_qsTileStrokeWidthInactive">1dp</dimen>
+</resources>

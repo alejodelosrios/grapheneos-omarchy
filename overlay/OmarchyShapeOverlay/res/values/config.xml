@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Rounded square (Hyprland window rounding), replaces the circle in config.xml:5062 -->
+    <string name="config_icon_mask" translatable="false">"M50,0L92,0C96.42,0 100,3.58 100,8L100,92C100,96.42 96.42,100 92,100L8,100C3.58,100 0,96.42 0,92L0,8C0,3.58 3.58,0 8,0L50,0Z"</string>
+</resources>
