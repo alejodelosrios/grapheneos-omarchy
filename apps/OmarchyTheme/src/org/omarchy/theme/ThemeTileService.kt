@@ -10,9 +10,9 @@ private const val DEFAULT_LABEL = "Omarchy theme"
 /**
  * QS tile: shows the current theme name, cycles to the next theme on tap. `TileService` is
  * public Android SDK API (no @SystemApi/@hide), declared for this service in
- * `AndroidManifest.xml:25-31` (BIND_QUICK_SETTINGS_TILE + QS_TILE intent-filter,
+ * `AndroidManifest.xml:29-35` (BIND_QUICK_SETTINGS_TILE + QS_TILE intent-filter,
  * `.swarm/design/design-9-theme-switcher.md` row P6). `ThemeCatalog.get`/`ThemeSwitcher.current`/
- * `.next()` do file/binder I/O: never on the main thread (`ThemeSwitcher.kt:33-34`), so both
+ * `.next()` do file/binder I/O: never on the main thread (KDoc de `ThemeSwitcher`), so both
  * callbacks resolve the theme on a background `Thread` and only touch `qsTile` on the main
  * `Looper`.
  */
