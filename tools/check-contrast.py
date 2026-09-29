@@ -12,6 +12,11 @@ naming the token.
   * system_text_*_inverse[*]      -> system_inverse_surface[_<mode>]  (snackbars/toasts:
     M3 pairs textColor*Inverse with inverseSurface, same mode)
   * system_inverse_on_<rol>[..]   -> system_inverse_<rol>[..]    (same mode)
+  * H7: system_on_surface[_variant]_<mode> -> ALL of the M3 surface family in the list
+    (surface, surface_dim, surface_bright, surface_container{,_low,_lowest,_high,_highest},
+    same mode) — that text sits on every surface; the homonym-only pairing of R5 lost the
+    surface_bright pair (H5) again. on_surface_variant also keeps its surface_variant
+    homonym (the H2 pair). One measured pair per background (100% rule per background).
 
 Not text (out of the sweep, classified here so nothing is silent): outline_* (borders),
 control_* (legacy AOSP textColorControl* used as control state tints), scrim/shadow (overlay),
@@ -53,6 +58,17 @@ ICONS = {
     "system_inverse_primary_light": "system_inverse_surface_light",
 }
 
+# H7: familia M3 de superficies que hospedan el texto on_surface{,_variant} (mismo modo).
+SURFACE_FAMILY = (
+    "surface", "surface_dim", "surface_bright",
+    "surface_container", "surface_container_low", "surface_container_lowest",
+    "surface_container_high", "surface_container_highest",
+)
+SURFACE_TEXT = {
+    "system_on_surface_dark", "system_on_surface_light",
+    "system_on_surface_variant_dark", "system_on_surface_variant_light",
+}
+
 
 def load_gen():
     spec = importlib.util.spec_from_file_location(
@@ -80,22 +96,34 @@ def _split_mode(rest):
             return rest[: -(len(mode) + 1)], mode
     return rest, None
 
-def background_for(name):
-    """Fondo emparejable de un token de texto (reglas del docstring); None si no aplica."""
+def backgrounds_for(name):
+    """Lista de fondos emparejables de un token de texto ([] si no le corresponde).
+
+    H7: on_surface{,_variant} es el texto de TODA la familia de superficies M3, no solo de
+    su homónimo (R5 perdió así el par de H5 sobre surface_bright). on_surface_variant
+    conserva además su homónimo surface_variant (par de H2).
+    """
+    if name in SURFACE_TEXT:
+        mode = name.rsplit("_", 1)[1]
+        bgs = [f"system_{stem}_{mode}" for stem in SURFACE_FAMILY]
+        if name.startswith("system_on_surface_variant_"):
+            bgs.append(f"system_surface_variant_{mode}")
+        return bgs
     if name.startswith("system_on_"):
         rol, mode = _split_mode(name[len("system_on_"):])
         if rol.endswith("_fixed_variant"):
             rol = rol[: -len("_fixed_variant")] + "_fixed_dim"
-        return "system_" + rol + (f"_{mode}" if mode else "")
+        return ["system_" + rol + (f"_{mode}" if mode else "")]
     if name.startswith("system_text_") and "_inverse" in name:
         _, mode = _split_mode(name[len("system_text_"):])
-        return "system_inverse_surface" + (f"_{mode}" if mode else "")
+        return ["system_inverse_surface" + (f"_{mode}" if mode else "")]
     if name.startswith("system_inverse_on_"):
-        return "system_inverse_" + name[len("system_inverse_on_"):]
-    return None
+        return ["system_inverse_" + name[len("system_inverse_on_"):]]
+    return []
 
 def derive_pairs(names):
-    """(fg, bg, kind) por cada token de texto/icono de tools/system-colors.txt (regla 100%)."""
+    """(fg, bg, kind) por cada token de texto/icono de tools/system-colors.txt (regla 100%:
+    todo token de texto empareja con todos sus fondos, y cada fondo debe existir en la lista)."""
     known = set(names)
     pairs = []
     for name in names:
@@ -104,11 +132,14 @@ def derive_pairs(names):
             continue
         if not name[len("system_"):].startswith(TEXT_PREFIXES):
             continue  # no es texto (clasificación en el docstring, no silenciosa)
-        bg = background_for(name)
-        if bg not in known:
-            sys.exit(f"check-contrast: {name}: sin fondo emparejable en system-colors.txt "
-                     f"(esperaba {bg}) — regla 100%")
-        pairs.append((name, bg, "disabled" if name in DISABLED else "text"))
+        bgs = backgrounds_for(name)
+        if not bgs:
+            sys.exit(f"check-contrast: {name}: sin fondo emparejable — regla 100%")
+        for bg in bgs:
+            if bg not in known:
+                sys.exit(f"check-contrast: {name}: fondo {bg} no está en system-colors.txt "
+                         f"— regla 100%")
+            pairs.append((name, bg, "disabled" if name in DISABLED else "text"))
     return pairs
 
 NAMES = tuple(ln for ln in

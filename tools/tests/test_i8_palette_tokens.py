@@ -16,7 +16,9 @@ Cada test se vio en ROJO con su sabotaje (ver reporte de QA / PR).
 """
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import re
 import runpy
 import subprocess
@@ -223,3 +225,40 @@ def test_colors_xml_trackeados():
         assert out.returncode == 0, (
             f"{rel}: NO trackeado por git (entregable sin commitear)"
         )
+
+
+# --- Sabotaje H5 sobre la derivación de pares (audit-8 H7) ----------------------
+
+def test_sabotaje_h5_surface_bright_detectado():
+    """Reintroduce H5 en MEMORIA (system_surface_bright_* <- light_foreground) y exige que
+    check-contrast salga con exit != 0.
+
+    Guardián de la clase H7: si la derivación de pares vuelve a perderse los pares de
+    surface_bright (familia de superficies M3), el check pasa en verde con este sabotaje y
+    este test cae a rojo (así se vio en rojo ANTES del arreglo de H7: el check no medía
+    surface_bright y aceptaba H5 reintroducido). No toca XML ni theme.toml commiteados.
+    """
+    gp = load_gen()
+    saved = dict(gp.TOKENS)
+    gp.TOKENS["system_surface_bright_dark"] = ("light_foreground",)
+    gp.TOKENS["system_surface_bright_light"] = ("light_foreground",)
+    try:
+        spec = importlib.util.spec_from_file_location("check_contrast_sabotaje", CHECK)
+        cc = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cc)
+        cc.load_gen = lambda: gp  # el check mide el generador saboteado (solo memoria)
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                cc.main([str(t) for t in theme_tomls()])
+        except SystemExit as e:
+            tail = "\n".join(buf.getvalue().splitlines()[-8:])
+            assert e.code not in (0, None), (
+                "check-contrast aceptó H5 reintroducido "
+                "(system_surface_bright_* <- light_foreground) — resumen:\n" + tail
+            )
+        else:
+            raise AssertionError("check-contrast no terminó en SystemExit")
+    finally:
+        gp.TOKENS.clear()
+        gp.TOKENS.update(saved)
