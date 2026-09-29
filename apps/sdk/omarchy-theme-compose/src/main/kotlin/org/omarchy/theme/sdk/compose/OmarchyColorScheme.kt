@@ -40,7 +40,12 @@ private fun hex(
 internal val TEXT_CANDIDATES =
     listOf("foreground", "bright_foreground", "light_foreground", "darker_background", "dark_background")
 
-private fun hexToRgb(hex: String): Triple<Int, Int, Int> {
+private val HEX_COLOR_REGEX = Regex("^#[0-9a-fA-F]{6}$")
+
+/** Returns null (never throws) if [hex] isn't `#rrggbb` — audit-10 R2-1: a malformed value from
+ * `theme.toml` (e.g. `"#fff"` or `"#gg0000"`) must not crash composition. */
+private fun hexToRgb(hex: String): Triple<Int, Int, Int>? {
+    if (!HEX_COLOR_REGEX.matches(hex)) return null
     val h = hex.removePrefix("#")
     return Triple(h.substring(0, 2).toInt(16), h.substring(2, 4).toInt(16), h.substring(4, 6).toInt(16))
 }
@@ -56,16 +61,19 @@ private fun relativeLuminance(rgb: Triple<Int, Int, Int>): Double {
 }
 
 /**
- * WCAG 2.x contrast ratio between two `#rrggbb` hex colors — same formula as `contrast()` /
- * `_lum()` in `tools/gen-palette.py:228-238` (audit-8). `internal` (not private) so
- * `OmarchyColorSchemeContrastTest` can exercise it directly: pure hex-string math, no [Context].
+ * WCAG 2.x contrast ratio between two hex colors — same formula as `contrast()`/`_lum()` in
+ * `tools/gen-palette.py:228-238` (audit-8). Returns null (never throws) if either hex isn't
+ * `#rrggbb` (audit-10 R2-1). `internal` (not private) so `OmarchyColorSchemeContrastTest` can
+ * exercise it directly: pure hex-string math, no [Context].
  */
 internal fun contrastRatio(
     hex1: String,
     hex2: String,
-): Double {
-    val l1 = relativeLuminance(hexToRgb(hex1))
-    val l2 = relativeLuminance(hexToRgb(hex2))
+): Double? {
+    val rgb1 = hexToRgb(hex1) ?: return null
+    val rgb2 = hexToRgb(hex2) ?: return null
+    val l1 = relativeLuminance(rgb1)
+    val l2 = relativeLuminance(rgb2)
     val lighter = maxOf(l1, l2)
     val darker = minOf(l1, l2)
     return (lighter + 0.05) / (darker + 0.05)
@@ -76,8 +84,9 @@ internal fun contrastRatio(
  * M1/audit-10 #1): [preferred] if it clears 4.5:1 against every key in [bgKeys]; else the first
  * of [TEXT_CANDIDATES] that does; else white or black, whichever has the better worst-case
  * contrast (the linear-mix extremes gen-palette falls back to are exactly white/black at t=0/1000).
- * Returns null only if [colors] is missing [preferred] or any of [bgKeys] — the caller then keeps
- * its Material base value, same policy as [hex].
+ * Returns null (never throws) if [colors] is missing [preferred] or any of [bgKeys], or if the
+ * preferred value or any background value isn't a valid `#rrggbb` hex (audit-10 R2-1) — the
+ * caller then keeps its Material base value, same policy as [hex].
  */
 internal fun pickText(
     colors: Map<String, String>,
@@ -85,15 +94,13 @@ internal fun pickText(
     bgKeys: List<String>,
 ): String? {
     val bgs = bgKeys.map { colors[it] ?: return null }
+    if (bgs.any { hexToRgb(it) == null }) return null
+    val preferredValue = colors[preferred] ?: return null
+    if (hexToRgb(preferredValue) == null) return null
 
-    fun contrastsOk(candidate: String): Boolean =
-        try {
-            bgs.all { contrastRatio(candidate, it) >= 4.5 }
-        } catch (e: NumberFormatException) {
-            false
-        }
+    fun contrastsOk(candidate: String): Boolean = bgs.all { (contrastRatio(candidate, it) ?: -1.0) >= 4.5 }
 
-    colors[preferred]?.let { if (contrastsOk(it)) return it }
+    if (contrastsOk(preferredValue)) return preferredValue
     for (key in TEXT_CANDIDATES) {
         val candidate = colors[key] ?: continue
         if (contrastsOk(candidate)) return candidate
@@ -101,8 +108,8 @@ internal fun pickText(
 
     val white = "#ffffff"
     val black = "#000000"
-    val whiteWorst = bgs.minOf { contrastRatio(white, it) }
-    val blackWorst = bgs.minOf { contrastRatio(black, it) }
+    val whiteWorst = bgs.minOf { contrastRatio(white, it)!! }
+    val blackWorst = bgs.minOf { contrastRatio(black, it)!! }
     return if (whiteWorst >= blackWorst) white else black
 }
 
