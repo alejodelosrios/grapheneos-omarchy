@@ -2,6 +2,8 @@ package org.omarchy.theme.sdk
 
 import android.database.MatrixCursor
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -71,5 +73,14 @@ class OmarchyThemeTest {
         val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
 
         assertNull(OmarchyTheme.current(ctx))
+    }
+
+    @Test
+    fun `flow without a registered provider emits null without throwing`() {
+        val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
+
+        val first = runBlocking { OmarchyTheme.flow(ctx).first() }
+
+        assertNull(first)
     }
 }
