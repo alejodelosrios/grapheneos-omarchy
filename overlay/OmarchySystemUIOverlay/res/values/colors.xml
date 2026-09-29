@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Status bar clock in the theme accent (Omarchy-style clock).
+         Upstream SystemUI default is #FFFFFFFF
+         (packages/SystemUI/res/values/colors.xml:26, GrapheneOS 17). The token is public
+         (core/res/res/values/public-final.xml:3127), so referencing it from an RRO is legal;
+         #8/#9 tematize it at runtime via the system_* palette. -->
+    <color name="status_bar_clock_color">@android:color/system_accent1_500</color>
+</resources>
