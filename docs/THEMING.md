@@ -129,7 +129,7 @@ El provider devuelve exactamente estas 28 columnas en este orden (`apps/OmarchyT
 - `query(uri, projection, null, null, null)`: devuelve un `MatrixCursor` con `COLUMNS`; se respeta `projection` si se proporciona
 - `selection` y `sortOrder` se ignoran
 - Permisos: ninguno (provider es permission-less, `exported="true"` sin `writePermission`)
-- Sin provider (AOSP stock): `query` devuelve `null` → usar fallback Nivel 0
+- Sin provider (AOSP stock): `query` devuelve `null`; `registerContentObserver` lanza `SecurityException`
 - Modificaciones: `insert`, `update`, `delete` devuelven `null`/`0` sin efecto
 
 #### Cambios de tema: `protected-broadcast` y `ContentObserver`
@@ -142,12 +142,16 @@ val observer = object : ContentObserver(null) {
         // Re-leer el tema con current() en Dispatchers.IO
     }
 }
-contentResolver.registerContentObserver(OmarchyThemeContract.CURRENT, notifyForDescendants = false, observer)
-// Al terminar:
+try {
+    contentResolver.registerContentObserver(OmarchyThemeContract.CURRENT, false, observer)
+} catch (e: SecurityException) {
+    // Sin provider (AOSP stock): usar fallback Nivel 0
+}
+// Al terminar (si register no lanzó):
 contentResolver.unregisterContentObserver(observer)
 ```
 
-Si usas la librería (`apps/sdk/omarchy-theme-android/`), `OmarchyTheme.flow(ctx)` ya implementa esto.
+Si usas la librería (`apps/sdk/omarchy-theme-android/`), `OmarchyTheme.flow(ctx)` ya implementa esta excepción (ver KDoc: `apps/sdk/omarchy-theme-android/src/main/kotlin/org/omarchy/theme/sdk/OmarchyTheme.kt:90-95`).
 
 #### Garantías de estabilidad
 
@@ -231,7 +235,7 @@ Pendiente (M4).
 #### Test
 
 `gradle -p apps/sdk test` ejecuta Robolectric contra:
-- `apps/sdk/omarchy-theme-android/src/test/kotlin/org/omarchy/theme/sdk/OmarchyThemeTest.kt`: parse de fila válida, id inválido, mode inválido, cursor vacío/null; `current()` sin provider devuelve null
+- `apps/sdk/omarchy-theme-android/src/test/kotlin/org/omarchy/theme/sdk/OmarchyThemeTest.kt`: parse de fila válida, id inválido, mode inválido, cursor vacío/null; `current()` sin provider devuelve null; `flow()` sin provider emite null sin lanzar
 
 #### No verificado sin host de build
 
