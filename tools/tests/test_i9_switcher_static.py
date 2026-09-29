@@ -55,9 +55,16 @@ STEP_MARKERS = {
     1: "setEnabledExclusiveInCategory",
     2: "THEME_CUSTOMIZATION_OVERLAY_PACKAGES",
     3: "setNightMode",
-    4: "setStream",
+    4: "setWallpaper(",
     5: "sendBroadcast",
 }
+
+
+def strip_comments(text: str) -> str:
+    """Quita comentarios `/* ... */` y `// ...` (naive, alcanza para este .kt)."""
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    text = re.sub(r"//[^\n]*", "", text)
+    return text
 
 
 def git_show(rev_path: str) -> str:
@@ -137,11 +144,32 @@ def steps_in_order_with_calls(text: str) -> str | None:
         return f"marcadores no ascendentes: {positions}"
     bounds = [positions[n] for n in range(1, 6)] + [len(text)]
     for n in range(1, 6):
-        segment = text[bounds[n - 1]:bounds[n]]
+        # Se descartan los comentarios del segmento: el paso 4 antes mencionaba `setStream`
+        # solo en el comentario del marcador (la llamada real vive en setWallpaper()), y un
+        # sabotaje que borre la llamada real pero deje el comentario debe seguir dando rojo.
+        segment = strip_comments(text[bounds[n - 1]:bounds[n]])
         call = STEP_MARKERS[n]
         if call not in segment:
-            return f"paso {n}: no contiene {call!r} antes del siguiente marcador"
+            return f"paso {n}: no contiene {call!r} antes del siguiente marcador (sin comentarios)"
     return None
+
+
+def setwallpaper_body(text: str) -> str:
+    m = re.search(r"fun setWallpaper\(file: File\): Boolean\s*=\s*", text)
+    assert m, "no se encontró fun setWallpaper(file: File): Boolean ="
+    # Es una expresión try/catch (no un bloque `{ }` propio): tomamos hasta el siguiente
+    # `fun ` de nivel de clase (companion object incluido) como límite superior generoso.
+    rest = text[m.end():]
+    end_m = re.search(r"\n    (fun |companion object)", rest)
+    return rest[: end_m.start()] if end_m else rest
+
+
+def test_i9_s2_setwallpaper_usa_setstream_con_flags_system_y_lock():
+    body = setwallpaper_body(SWITCHER_KT.read_text())
+    assert "setStream(" in body, "setWallpaper() no llama a setStream("
+    assert re.search(r"FLAG_SYSTEM\s+or\s+\w*\.?FLAG_LOCK", body), (
+        "setWallpaper() no usa FLAG_SYSTEM or FLAG_LOCK"
+    )
 
 
 def test_i9_s2_pasos_en_orden_ascendente_con_su_llamada():
@@ -166,6 +194,22 @@ def test_i9_s2_sabotaje_orden_de_pasos():
     assert sabotaged != text, "el sabotaje no encontró los marcadores // 1. / // 3. a intercambiar"
     reason = steps_in_order_with_calls(sabotaged)
     assert reason is not None, "sabotaje sin efecto: el orden debía romperse"
+
+
+def test_i9_s2_sabotaje_paso4_sin_llamada_real_deja_comentario_da_rojo():
+    """#11 extrajo el wallpaper a setWallpaper(): si alguien borra la llamada real del paso 4
+    pero deja el comentario (que también menciona "setWallpaper()"), el criterio debe seguir
+    dando rojo porque el chequeo ignora comentarios."""
+    text = SWITCHER_KT.read_text()
+    assert steps_in_order_with_calls(text) is None
+    line = (
+        '            setWallpaper(File("${ThemeContract.CATALOG_DIR}/$themeId/$background"))\n'
+    )
+    assert line in text, "no se encontró la llamada real de setWallpaper( en el paso 4"
+    sabotaged = text.replace(line, "", 1)
+    assert sabotaged != text
+    reason = steps_in_order_with_calls(sabotaged)
+    assert reason is not None, "sabotaje sin efecto: el paso 4 debía quedar sin su llamada real"
 
 
 # --- S3 · manifest -----------------------------------------------------------------

@@ -37,3 +37,5 @@ bright_magenta = "#938aa9"
 palette_package = "org.omarchy.palette.kanagawa"
 theme_style = "TONAL_SPOT"   # fallback seed mode if the palette RRO is unavailable
 font = "jetbrains-mono-nerd"
+icon_shape = "rounded-square"
+themed_icons = "true"

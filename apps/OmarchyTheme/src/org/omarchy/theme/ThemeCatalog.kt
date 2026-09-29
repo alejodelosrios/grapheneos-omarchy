@@ -33,9 +33,51 @@ data class Theme(
     val accent: String get() = values.getValue("accent")
     val background: String get() = values.getValue("background")
     val foreground: String get() = values.getValue("foreground")
+
+    val iconShape: String
+        get() {
+            val v = values["android.icon_shape"] ?: return "rounded-square"
+            if (v != "rounded-square" && v != "circle") {
+                Log.w(TAG, "$id: invalid android.icon_shape $v, defaulting to rounded-square")
+                return "rounded-square"
+            }
+            return v
+        }
+
+    val themedIcons: Boolean
+        get() {
+            val v = values["android.themed_icons"] ?: return true
+            return when (v) {
+                "true" -> {
+                    true
+                }
+
+                "false" -> {
+                    false
+                }
+
+                else -> {
+                    Log.w(TAG, "$id: invalid android.themed_icons $v, defaulting to true")
+                    true
+                }
+            }
+        }
 }
 
 object ThemeCatalog {
+    // Must match OMARCHY_BG_EXTS in omarchy.mk; tools/tests/test_i11_*.py checks they agree.
+    val BACKGROUND_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
+
+    fun backgroundFiles(
+        id: String,
+        dir: String = ThemeContract.CATALOG_DIR,
+    ): List<File> =
+        File(dir, id)
+            .let { File(it, "backgrounds") }
+            .listFiles { f -> f.isFile && f.extension in BACKGROUND_EXTENSIONS }
+            ?.sortedBy { it.name }
+            ?: emptyList()
+
     fun load(dir: String = ThemeContract.CATALOG_DIR): List<Theme> =
         File(dir)
             .listFiles { f -> f.isDirectory }

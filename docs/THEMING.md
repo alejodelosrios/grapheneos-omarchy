@@ -8,6 +8,27 @@ themes/<id>/backgrounds/*.jpg     # fondos (licencia verificada por archivo)
 overlay/themes/<id>/OmarchyPalette<Id>/   # RRO generado: 65 system_* (+ tokens A14+)
 ```
 
+### Claves de `[android]` en `theme.toml`
+
+Las siguientes claves en la sección `[android]` permiten personalizar el comportamiento de la UI
+por tema (`apps/OmarchyTheme/src/org/omarchy/theme/ThemeCatalog.kt:20-65`):
+
+| Clave | Default | Valores válidos | Descripción |
+|---|---|---|---|
+| `palette_package` | — | string | Identificador del paquete RRO de paleta (obligatorio). Ej. `org.omarchy.palette.tokyonight` (`themes/tokyo-night/theme.toml:37`) |
+| `theme_style` | `TONAL_SPOT` | string | Estrategia de Material You para derivar colores (ThemeCatalog.kt:31). Ej. `TONAL_SPOT`, `EXPRESSIVE` |
+| `font` | `jetbrains-mono-nerd` | string | Identificador de fuente (omitido del JSON si es `system`; ThemeCatalog.kt:32) |
+| `icon_shape` | `rounded-square` | `rounded-square` \| `circle` | Forma de los iconos adaptativos (ThemeCatalog.kt:37-45) |
+| `themed_icons` | `true` | `"true"` \| `"false"` | Tintado de iconos del launcher (como string; ThemeCatalog.kt:47-64) |
+
+**Valores inválidos:** si `icon_shape` o `themed_icons` contienen un valor no permitido, `ThemeCatalog`
+los registra en el log con `Log.w` y aplica el default sin lanzar excepción
+(`apps/OmarchyTheme/src/org/omarchy/theme/ThemeCatalog.kt:40-44, 59-62`).
+
+**Fondos:** `backgrounds` es un array TOML opcional con rutas relativas a archivos del directorio
+`themes/<id>/backgrounds/`. Solo se copian en el producto archivos con estas extensiones:
+`jpg`, `jpeg`, `png`, `webp` (la lista exacta está en `omarchy.mk:41` como `OMARCHY_BG_EXTS`).
+
 `theme.toml` usa **las mismas claves que Omarchy** (`accent`, `background`, `foreground`, `red`…
 `bright_magenta`, `mode`), así que importar un tema nuevo es copiar el archivo y correr:
 
@@ -51,19 +72,60 @@ dynamic color cambian con el tema sin conocer Omarchy**.
 4. `WallpaperManager.setStream(backgrounds[0])` (se salta si `theme.toml` omite `backgrounds` o está vacío)
 5. `sendBroadcast(org.omarchy.theme.CHANGED)`
 
-**Por qué shape y font son mutables:** `ThemeOverlayApplier.java:209-225` desactiva todo overlay en las categorías de
+**Por qué shape y font son mutables:** `ThemeOverlayApplier.java:209-225` (GrapheneOS 17) desactiva todo overlay en las categorías de
 `THEME_CATEGORIES` (`:118-128`) si su paquete no aparece en el JSON. Sin estas claves, SystemUI apaga
 `org.omarchy.overlay.shape` y `org.omarchy.overlay.font` (mutables, `overlay/config/config.xml`). El mismo paquete en
-`accent_color` y `dynamic_color` (en lugar de usar los FRRO Monet por defecto) evita que `ThemeOverlayController.java:822-829`
+`accent_color` y `dynamic_color` (en lugar de usar los FRRO Monet por defecto) evita que `ThemeOverlayController.java:822-829` (GrapheneOS 17)
 habilite los FRROs dinámicos, manteniendo la paleta exacta del tema; `color_source="preset"` obliga a que no se reescriba
-el JSON al cambiar wallpaper (`ThemeOverlayController.java:366-378`).
+el JSON al cambiar wallpaper (`ThemeOverlayController.java:366-378` — GrapheneOS 17).
+
+### Forma de iconos e iconos temáticos
+
+**Forma de iconos adaptativos:** la clave `adaptive_icon_shape` del JSON se establece según `theme.iconShape`:
+- `icon_shape = "rounded-square"` (D1) → `adaptive_icon_shape` = `org.omarchy.overlay.shape` (overlay
+  `OmarchyShapeOverlay`; `overlay/OmarchyShapeOverlay/res/values/config.xml`)
+- `icon_shape = "circle"` → se **omite** la clave `adaptive_icon_shape` del JSON (ThemeSwitcher.kt:95-97).
+  Esto deja activo el `config_icon_mask` de stock de GrapheneOS (máscara circular,
+  `core/res/res/values/config.xml:5062` — GrapheneOS 17; `ThemeOverlayApplier.java:209-225` — GrapheneOS 17 — desactiva el overlay al
+  no encontrar la clave en el JSON).
+- `squircle` no existe en v1: no hay un camino de `config_icon_mask` verificado en rama 17 de GrapheneOS.
+
+**Override de forma del usuario:** si el usuario eligió una forma de icono en el ThemePicker de stock,
+el launcher sigue su preferencia (`icon_shape_model`, ThemeManager.kt:149-156,236 — GrapheneOS 17) incluso cuando el
+sistema tiene un overlay de forma activado (D3). El RRO manda en el sistema, pero en el launcher solo
+si el usuario no fijó la forma antes.
+
+**Iconos temáticos (tintado de launcher):** si `themed_icons = "true"`, `ThemeSwitcher` empuja la
+preferencia al launcher3 en un hilo sin bloquear (`Thread`, sin `join`; ThemeSwitcher.kt:162-175).
+Usa `ContentResolver.update` sobre `content://com.android.launcher3.grid_control/icon_themed` con
+el valor booleano (D5, `GridCustomizationsProxy.java:130-132,139,321-328` — GrapheneOS 17). Es best-effort: si otro
+launcher es el predeterminado o si Launcher3 no está disponible, no pasa nada; los errores se
+registran con `Log.w` sin detener el cambio de tema. El ContentProvider está exportado y exige
+permiso `BIND_WALLPAPER` o `GRID_CONTROL` (`LauncherCustomizationProvider.kt:38-58` — GrapheneOS 17);
+nuestro uid `system` debería pasarlo vía chequeo de acceso no exportado (`ActivityManager.java:5513-5518` — GrapheneOS 17).
+**No verificado sin host de build: requiere ejecutar en Pixel para confirmar que el uid system accede al provider.**
 
 **Persistencia:** `BootReceiver` reaplica el tema en `BOOT_COMPLETED` si el JSON guardado no coincide con la paleta actual
 (`BootReceiver.kt:26-27`). **No verificado sin host de build.**
 
-Entradas de usuario: app "Theme" en el launcher (lista con preview, como `omarchy-theme-switcher`)
-y tile de Quick Settings "Theme" (tap = siguiente tema, long-press = picker). Tile "Next wallpaper"
-= `omarchy-theme-bg-next`.
+Entradas de usuario: app "Theme" en el launcher (lista con preview, como `omarchy-theme-switcher`),
+tile de Quick Settings "Theme" (tap = siguiente tema, long-press = picker), y tile "Next wallpaper"
+(`WallpaperTileService`, contrato `omarchy-theme-bg-next`, D6):
+
+**Tile "Next wallpaper":**
+- Recorre los fondos del tema actual, leyendo los archivos de `themes/<id>/backgrounds/` filtrados por
+  las extensiones `jpg`, `jpeg`, `png`, `webp` (lista exacta en `omarchy.mk:41` como `OMARCHY_BG_EXTS`,
+  reflejada en `ThemeCatalog.BACKGROUND_EXTENSIONS`, `ThemeCatalog.kt:69`), y ordenados por nombre.
+- Cada tap avanza al siguiente fondo con `(índice+1) % n`, donde `n` es el total de fondos. Vuelve al
+  primero después del último (`WallpaperTileService.kt:42-58`).
+- El índice se persiste por tema en las prefs device-protected bajo la clave `bg_index_<id>`
+  (compartidas con `ThemeSwitcher`, `ThemeSwitcher.kt:212`).
+- El tile queda `STATE_UNAVAILABLE` si el tema tiene menos de 2 fondos; de lo contrario, `STATE_ACTIVE`
+  (`WallpaperTileService.kt:28-39`).
+- Al cambiar de tema vía `ThemeSwitcher.set()`, el índice se reinicia a 0 (`ThemeSwitcher.kt:133`),
+  coherente con el paso 4 que pone `backgrounds[0]` como fondo inicial.
+- **No verificado sin host de build: requiere ejecutar en Pixel para verificar que el wallpaper cambia
+  al tocar el tile.**
 
 Comprobación manual sin app (userdebug): ver `docs/BUILD.md §7`.
 
