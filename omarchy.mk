@@ -3,7 +3,9 @@
 
 OMARCHY_DIR := vendor/omarchy
 
-# Static, theme-independent skin (always on, immutable)
+# Framework/SystemUI: static, immutable, always on. Shape/font: mutable,
+# switched by category (shape/font) via SystemUI from OmarchyTheme's JSON
+# (ThemeOverlayApplier.java:209-225); initial state in overlay/config/config.xml.
 PRODUCT_PACKAGES += \
     OmarchyFrameworkOverlay \
     OmarchySystemUIOverlay \
