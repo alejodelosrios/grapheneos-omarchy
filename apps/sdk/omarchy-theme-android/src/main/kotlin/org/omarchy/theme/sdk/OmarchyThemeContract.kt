@@ -51,6 +51,13 @@ object OmarchyThemeContract {
     /** Only lowercase letters, digits and hyphens; applied to `id` by [OmarchyTheme.parse]. */
     const val ID_PATTERN = "^[a-z0-9-]+$"
 
+    /**
+     * A 6-digit `#rrggbb` hex color, no alpha, no 3-digit shorthand. Same shape as `HEX_RE` in
+     * `tools/gen-palette.py:205` (`#[0-9a-fA-F]{6}`, there matched with `fullmatch`); applied to
+     * each color value by [OmarchyTheme.parse].
+     */
+    const val HEX_PATTERN = "^#[0-9a-fA-F]{6}$"
+
     /** One row: the current theme. Columns = COLUMNS. */
     const val CURRENT_PATH = "current"
 
