@@ -15,9 +15,12 @@ R2/H2 (audit-8): the text tokens the audit measures (`on_surface_variant_*`, `on
 their colour by WCAG contrast when the preferred theme key falls short of 4.5 — light text on
 dark backgrounds and vice versa, linear mixing only (no `--hct`).
 
+H3 (audit-8): every theme.toml key used here must be `#rrggbb` (exit != 0 naming the key
+otherwise) — no raw value reaches the XML unvalidated.
+
 Usage: tools/gen-palette.py themes/tokyo-night/theme.toml > overlay/themes/tokyo-night/OmarchyPaletteTokyoNight/res/values/colors.xml
 """
-import sys, tomllib
+import re, sys, tomllib
 from pathlib import Path
 
 TONES = [0, 10, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
@@ -37,7 +40,8 @@ ERROR_KEY = "red"  # rampa system_error_{0..1000} <- red, misma función tone (d
 #     primarios (primary/secondary/tertiary)->dark_background, error->darker_background
 #   R2/H2 (audit-8): on_surface_variant_*->foreground (era muted: 1.00:1 contra surface_variant);
 #     on_{primary,secondary,tertiary,error}_container_dark->foreground (texto claro sobre el
-#     contenedor tono 800), los _light se quedan como estaban. on_surface_variant_* y
+#     contenedor tono 800), los _light se quedan como estaban (R3: on_error_container_light se
+#     homogeneizó a dark_background, decisión PM). on_surface_variant_* y
 #     on_error_* se resuelven en ADAPTIVE (ver pick_text): si su clave preferida no llega a 4.5
 #     contra sus fondos, gana el primer candidato que lo haga (claro sobre oscuro y viceversa).
 #   fixed->tone(base,150), fixed_dim->tone(base,300), container_dark->tone(base,800),
@@ -123,7 +127,7 @@ TOKENS = {
     "system_on_tertiary_fixed_variant": ("dark_background",),
     # on_error_* -> ADAPTIVE (R2/H2): preferido darker_background
     "system_on_error_container_dark": ("foreground",),
-    "system_on_error_container_light": ("darker_background",),
+    "system_on_error_container_light": ("dark_background",),  # R3: homogéneo con el resto de _light
     # --- inverse_*: contraparte del par (surface,on_surface) / (primary,on_primary) ---
     "system_inverse_surface_dark": ("foreground",),
     "system_inverse_surface_light": ("foreground",),
@@ -184,6 +188,19 @@ ADAPTIVE = {
 }
 
 SYSTEM_COLORS_TXT = Path(__file__).with_name("system-colors.txt")
+HEX_RE = re.compile(r"#[0-9a-fA-F]{6}")
+TEXT_CANDIDATES = ("foreground", "bright_foreground", "light_foreground",
+                   "darker_background", "dark_background")
+
+def used_color_keys():
+    """Claves de theme.toml que deciden un <color>: las que H3 (audit-8) exige validar."""
+    keys = set(ROLES.values()) | {ERROR_KEY} | set(TEXT_CANDIDATES)
+    for spec in TOKENS.values():
+        keys.add(spec[0])
+    for preferred, bg_keys in ADAPTIVE.values():
+        keys.add(preferred)
+        keys.update(bg_keys)
+    return keys
 
 def hex2rgb(h): h = h.lstrip("#"); return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 def rgb2hex(c): return "#%02x%02x%02x" % tuple(max(0, min(255, round(v))) for v in c)
@@ -219,8 +236,7 @@ def pick_text(theme, preferred, bg_keys):
 
     if ok(theme[preferred]):
         return theme[preferred]
-    for key in ("foreground", "bright_foreground", "light_foreground",
-                "darker_background", "dark_background"):
+    for key in TEXT_CANDIDATES:
         if ok(theme[key]):
             return theme[key]
     for t in (0, 1000):
@@ -233,6 +249,12 @@ def expected_tokens():
     return [ln for ln in SYSTEM_COLORS_TXT.read_text().splitlines() if ln.strip()]
 
 def palette(theme):
+    # H3 (audit-8): ningún valor de theme.toml entra al XML sin validar (mitiga inyección vía
+    # theme.toml; hex2rgb solo recibe 6 dígitos). Falla nombrando la clave.
+    for key in sorted(used_color_keys()):
+        v = theme.get(key)
+        if not isinstance(v, str) or not HEX_RE.fullmatch(v):
+            sys.exit(f"gen-palette: theme.toml: {key}={v!r} no es un color #rrggbb — abortado")
     out = {}
     # rampa clásica 65: ROLES sin cambios (design-8; mapeo en docs/THEMING.md:20)
     for role, key in ROLES.items():

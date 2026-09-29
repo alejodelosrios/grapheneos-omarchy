@@ -100,7 +100,7 @@
     <color name="system_on_background_dark">#c0caf5</color>
     <color name="system_on_background_light">#c0caf5</color>
     <color name="system_on_error_container_dark">#a9b1d6</color>
-    <color name="system_on_error_container_light">#0e0e14</color>
+    <color name="system_on_error_container_light">#13141c</color>
     <color name="system_on_error_dark">#0e0e14</color>
     <color name="system_on_error_light">#0e0e14</color>
     <color name="system_on_primary_container_dark">#a9b1d6</color>

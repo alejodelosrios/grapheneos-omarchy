@@ -6,6 +6,8 @@
 #
 # Pasos (cada uno deja el artefacto del diseño):
 #   1. curl https://raw.githubusercontent.com/basecamp/omarchy/master/themes/<id>/colors.toml
+#      (validado con tomllib antes de escribir: juego de claves esperado de 26 + hex #rrggbb,
+#      H3 de audit-8; si no valida, exit != 0 sin escribir nada)
 #      -> themes/<id>/theme.toml: claves upstream idénticas (mode/colores, verbatim) + cabecera
 #         `name` (preservada de upstream si la trae; si no, derivada del id como en tokyo-night
 #         -> "Tokyo Night") + tabla [android] con `palette_package` derivado y
@@ -43,6 +45,34 @@ template="overlay/themes/tokyo-night/OmarchyPaletteTokyoNight"
 url="https://raw.githubusercontent.com/basecamp/omarchy/master/themes/$id/colors.toml"
 raw=$(mktemp); trap 'rm -f "$raw"' EXIT
 curl -fsSL "$url" -o "$raw" || { echo "curl falló: $url" >&2; exit 1; }
+
+# H3 (audit-8): valida el colors.toml descargado ANTES de escribir nada — tomllib + juego de
+# claves esperado (26: mode + 25 colores) + hex #rrggbb en los colores + mode dark|light.
+# name/font/backgrounds se toleran porque el filtro de abajo los elimina (#6/#7). Sin pin SHA
+# (decisión PM: la validación basta; el curl solo corre en importación, el build usa lo commiteado).
+python3 - "$raw" <<'PY' || { echo "colors.toml de $id ($url) no pasa la validación — no se escribe nada" >&2; exit 1; }
+import re, sys, tomllib
+
+expected = {
+    "mode", "accent", "selection", "muted", "background", "dark_background",
+    "darker_background", "lighter_background", "foreground", "dark_foreground",
+    "light_foreground", "bright_foreground", "red", "yellow", "orange", "green",
+    "cyan", "blue", "magenta", "brown", "bright_red", "bright_yellow",
+    "bright_green", "bright_cyan", "bright_blue", "bright_magenta",
+}
+allowed_extra = {"name", "font", "backgrounds"}
+try:
+    d = tomllib.loads(open(sys.argv[1]).read())
+except Exception as e:
+    sys.exit(f"colors.toml ilegible: {e.__class__.__name__}: {e}")
+keys = set(d)
+missing, extra = sorted(expected - keys), sorted(keys - expected - allowed_extra)
+bad = sorted(k for k in expected - {"mode"} - set(missing)
+             if not (isinstance(d[k], str) and re.fullmatch(r"#[0-9a-fA-F]{6}", d[k])))
+if missing or extra or bad or d.get("mode") not in ("dark", "light"):
+    sys.exit(f"colors.toml no esperado: faltan={missing} sobran={extra} "
+             f"hex_mal={bad} mode={d.get('mode')!r}")
+PY
 
 mkdir -p "themes/$id"
 python3 - "$raw" "themes/$id/theme.toml" "$title" "$package" <<'PY'
