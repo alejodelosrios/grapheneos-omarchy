@@ -81,7 +81,7 @@ no existe (no es OmarchyOS) `query` devuelve `null`: caer al nivel 0.
 
 | Recurso | Archivo upstream | Nuestro overlay |
 |---|---|---|
-| `rounded_corner_radius`, `config_dialogCornerRadius`, `config_bottomDialogCornerRadius` | `core/res/res/values/config.xml` | OmarchyFrameworkOverlay |
+| `config_dialogCornerRadius`, `config_bottomDialogCornerRadius` | `core/res/res/values/config.xml` (rounded_corner_radius retirado en #4) | OmarchyFrameworkOverlay |
 | `config_icon_mask` | `core/res/res/values/config.xml:5062` | OmarchyShapeOverlay |
 | `config_bodyFontFamily`, `config_headlineFontFamily` (+Medium) | `core/res/res/values/config.xml:5556-5645` | OmarchyFontOverlay |
 | `notification_corner_radius`, `qs_corner_radius`, `qs_tile_margin_horizontal`, `qs_panel_padding`, `notification_shade_content_margin_horizontal` | `packages/SystemUI/res/values/dimens.xml:355,705,706,734,809` | OmarchySystemUIOverlay |
