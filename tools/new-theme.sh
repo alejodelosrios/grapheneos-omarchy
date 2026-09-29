@@ -10,9 +10,11 @@
 #      H3 de audit-8; si no valida, exit != 0 sin escribir nada)
 #      -> themes/<id>/theme.toml: claves upstream idénticas (mode/colores, verbatim) + cabecera
 #         `name` (preservada de upstream si la trae; si no, derivada del id como en tokyo-night
-#         -> "Tokyo Night") + tabla [android] con `palette_package` derivado y
-#         `theme_style="TONAL_SPOT"` y `font="jetbrains-mono-nerd"` (#6). SIN `backgrounds`/fondos
-#         (#7): si upstream trajera `font` o `backgrounds`, se eliminan aquí (el `font` va fijo).
+#         -> "Tokyo Night") + tabla [android] con `palette_package` derivado,
+#         `theme_style="TONAL_SPOT"`, `font="jetbrains-mono-nerd"` (#6),
+#         `icon_shape="rounded-square"` y `themed_icons="true"` (#11, D2). SIN `backgrounds`/fondos
+#         (#7): si upstream trajera `font`, `icon_shape`, `themed_icons` o `backgrounds`, se
+#         eliminan aquí (van fijos con nuestros defaults).
 #   2. Scaffold del RRO espejo de Tokyo Night (mismos ficheros, solo cambian módulo/paquete):
 #      overlay/themes/<id>/OmarchyPalette<Id>/{Android.bp,AndroidManifest.xml,res/values/colors.xml}
 #      con colors.xml generado por tools/gen-palette.py (194 tokens, cobertura 100%).
@@ -60,7 +62,7 @@ expected = {
     "cyan", "blue", "magenta", "brown", "bright_red", "bright_yellow",
     "bright_green", "bright_cyan", "bright_blue", "bright_magenta",
 }
-allowed_extra = {"name", "font", "backgrounds"}
+allowed_extra = {"name", "font", "icon_shape", "themed_icons", "backgrounds"}
 try:
     d = tomllib.loads(open(sys.argv[1]).read())
 except Exception as e:
@@ -81,11 +83,12 @@ import re, sys
 raw, out, title, package = sys.argv[1:5]
 keep, upstream_name = [], None
 for line in open(raw):
-    m = re.match(r"^(name|font|backgrounds)\s*=", line.strip())
+    m = re.match(r"^(name|font|icon_shape|themed_icons|backgrounds)\s*=", line.strip())
     if m:
         if m.group(1) == "name":
             upstream_name = re.sub(r'^name\s*=\s*', "", line.strip()).strip().strip('"')
-        continue  # font de upstream (#6: se inyecta el nuestro) y backgrounds/fondos (#7) quedan fuera
+        continue  # font/icon_shape/themed_icons de upstream (#6/#11: van fijos con nuestros
+                  # defaults) y backgrounds/fondos (#7) quedan fuera
     keep.append(line)
 body = "".join(keep).rstrip() + "\n"
 name = upstream_name or title  # name/mode "preservados de upstream"; name se deriva del id si no viene
@@ -98,6 +101,8 @@ text = (
     f'palette_package = "{package}"\n'
     f'theme_style = "TONAL_SPOT"   # fallback seed mode if the palette RRO is unavailable\n'
     f'font = "jetbrains-mono-nerd"\n'
+    f'icon_shape = "rounded-square"\n'
+    f'themed_icons = "true"\n'
 )
 open(out, "w").write(text)
 PY
