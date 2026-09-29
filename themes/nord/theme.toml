@@ -36,3 +36,4 @@ bright_magenta = "#b48ead"
 [android]
 palette_package = "org.omarchy.palette.nord"
 theme_style = "TONAL_SPOT"   # fallback seed mode if the palette RRO is unavailable
+font = "jetbrains-mono-nerd"

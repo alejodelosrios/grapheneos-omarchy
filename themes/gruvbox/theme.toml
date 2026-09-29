@@ -36,3 +36,4 @@ bright_magenta = "#d3869b"
 [android]
 palette_package = "org.omarchy.palette.gruvbox"
 theme_style = "TONAL_SPOT"   # fallback seed mode if the palette RRO is unavailable
+font = "jetbrains-mono-nerd"
