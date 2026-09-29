@@ -26,7 +26,19 @@ android {
                 "--add-opens=java.base/java.io=ALL-UNNAMED",
                 "--add-opens=java.base/java.net=ALL-UNNAMED",
                 "--add-opens=java.base/java.security=ALL-UNNAMED",
+                // SDK 37 on JDK 21: AndroidInterceptors$FileDescriptorInterceptor reaches
+                // jdk.internal.access.SharedSecrets, which java.base does not export to the
+                // unnamed module by default -> IllegalAccessException at
+                // AndroidInterceptors.java:88 / Reflection.java:394. Confirmed root cause and
+                // fix in robolectric/robolectric#11434 ("SDK 37 throws IllegalAccessException")
+                // and in Robolectric's own build config (jvmArgs list), see
+                // https://github.com/robolectric/robolectric/blob/26d5dc6063e1c87919d1f85d4ee6d4250241c624/build-logic/convention/src/main/java/org/robolectric/gradle/TestTaskConfiguration.kt#L58-L79
+                "--add-opens=java.base/jdk.internal.access=ALL-UNNAMED",
             )
+            it.testLogging {
+                exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+                events("failed")
+            }
         }
     }
 }
