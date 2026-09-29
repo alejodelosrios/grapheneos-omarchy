@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Omarchy: rounded but not pill-shaped windows (Hyprland rounding = 8..12 px) -->
-    <dimen name="rounded_corner_radius">28dp</dimen>
-    <dimen name="config_dialogCornerRadius">16dp</dimen>
-    <dimen name="config_bottomDialogCornerRadius">20dp</dimen>
-    <!-- Default wallpaper is replaced by res/drawable-nodpi/default_wallpaper.png (issue M1) -->
+    <dimen name="config_dialogCornerRadius">12dp</dimen>
+    <dimen name="config_bottomDialogCornerRadius">16dp</dimen>
+    <!-- Default wallpaper is provided by res/drawable-nodpi/default_wallpaper.png (issue #7) -->
 </resources>
