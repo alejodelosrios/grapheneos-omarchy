@@ -8,4 +8,7 @@
     <dimen name="notification_shade_content_margin_horizontal">12dp</dimen>
     <dimen name="qs_tile_margin_horizontal">6dp</dimen>
     <dimen name="qs_panel_padding">12dp</dimen>
+    <!-- No shadow on notifications (pin: stock is already 0dp,
+         packages/SystemUI/res/values/dimens.xml:790, GrapheneOS 17). -->
+    <dimen name="notification_shadow_radius">0dp</dimen>
 </resources>

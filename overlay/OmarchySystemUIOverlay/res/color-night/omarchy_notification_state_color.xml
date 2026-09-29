@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2023 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<!-- Omarchy night variant of res/color/omarchy_notification_state_color.xml: same states and
+     alphas, but materialColorOnSurface resolves to system_on_surface_dark in night (same hex
+     #E4E5F0 as the stock dark chain, core/res/res/values/colors.xml:722). Transparent stays
+     @android:color/transparent in both modes. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Pressed state's alpha is set to 0.00 temporarily until this bug is resolved permanently
+    b/313920497 Design intended alpha is 0.15-->
+    <item android:state_pressed="true" android:color="@android:color/system_on_surface_dark" android:alpha="0.00" />
+    <item android:state_hovered="true" android:color="@android:color/system_on_surface_dark" android:alpha="0.11" />
+    <item android:color="@android:color/transparent" />
+</selector>

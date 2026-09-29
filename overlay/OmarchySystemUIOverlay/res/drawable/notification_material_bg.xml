@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2014 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License
+  -->
+
+<!-- Omarchy day variant. Derived from packages/SystemUI/res/drawable/notification_material_bg.xml
+     (GrapheneOS 17): same 3 layers, same states and alphas. Changes: (1) private
+     materialColorSurfaceContainerHigh -> public system_surface_container_high_light (same hex
+     #E7E7F1, core/res/res/values/colors.xml:635); (2) layer 1 gains the 1dp stroke in
+     system_accent1_500 = Omarchy/Mako border that follows the theme; (3) focus stroke is the
+     literal 3dp (stock dimen notification_focus_stroke_width, dimens.xml:358) since that dimen is
+     private; (4) state/focus layers point at the local omarchy_* selectors (design-5 condition:
+     an RRO replacing notification_state_color_default would affect all of SystemUI).
+     xmlns:androidprv dropped (unused upstream). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android"
+        android:color="?android:attr/colorControlHighlight">
+    <item>
+        <shape>
+            <solid android:color="@android:color/system_surface_container_high_light" />
+            <stroke android:width="1dp" android:color="@android:color/system_accent1_500" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <solid android:color="@color/omarchy_notification_state_color" />
+        </shape>
+    </item>
+    <item android:id="@+id/notification_focus_overlay">
+        <shape>
+            <stroke android:width="3dp"
+                android:color="@color/omarchy_notification_focus_overlay_color"/>
+        </shape>
+    </item>
+</layer-list>
