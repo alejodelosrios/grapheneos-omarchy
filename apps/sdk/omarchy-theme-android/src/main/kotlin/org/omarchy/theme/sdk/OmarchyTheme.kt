@@ -72,9 +72,11 @@ data class OmarchyTheme(
                         null,
                         null,
                     )?.use { parse(it) }
-            } catch (e: SecurityException) {
-                null
-            } catch (e: IllegalArgumentException) {
+            } catch (e: RuntimeException) {
+                // IPC boundary with a foreign process: SecurityException/IllegalArgumentException
+                // when the provider isn't installed, but also whatever RuntimeException the
+                // remote provider's process throws (e.g. IllegalStateException, NPE) crosses
+                // the binder call as-is and must not crash this client.
                 null
             }
 
@@ -84,6 +86,12 @@ data class OmarchyTheme(
          * involved). The observer's callback does no IPC: it only sends a change signal
          * ([Unit]); the signal is conflated (so two changes in a row collapse into one
          * reread) and [current] is called downstream on [Dispatchers.IO].
+         *
+         * On stock AOSP (no provider installed), `registerContentObserver` itself throws
+         * `SecurityException` ("Failed to find provider org.omarchy.theme", GrapheneOS 17
+         * `ContentService.java:383-387`) before any row is ever read. That is caught here:
+         * this [Flow] still emits `null` once (from the initial [current] read, which already
+         * returns null without a provider) and then simply never emits again, without failing.
          */
         fun flow(ctx: Context): Flow<OmarchyTheme?> =
             callbackFlow {
@@ -97,12 +105,20 @@ data class OmarchyTheme(
                             trySend(Unit)
                         }
                     }
-                ctx.contentResolver.registerContentObserver(
-                    OmarchyThemeContract.CURRENT,
-                    false,
-                    observer,
-                )
-                awaitClose { ctx.contentResolver.unregisterContentObserver(observer) }
+                val registered =
+                    try {
+                        ctx.contentResolver.registerContentObserver(
+                            OmarchyThemeContract.CURRENT,
+                            false,
+                            observer,
+                        )
+                        true
+                    } catch (e: SecurityException) {
+                        // No provider (stock AOSP): keep the initial emission, nothing to
+                        // unregister.
+                        false
+                    }
+                awaitClose { if (registered) ctx.contentResolver.unregisterContentObserver(observer) }
             }.conflate().map { current(ctx) }.flowOn(Dispatchers.IO)
     }
 }
