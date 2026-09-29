@@ -93,3 +93,5 @@ no existe (no es OmarchyOS) `query` devuelve `null`: caer al nivel 0.
 | `system_{accent1,accent2,accent3,neutral1,neutral2}_{0..1000}` | `core/res/res/values/public-final.xml` | OmarchyPalette* |
 
 Cuando un release mensual renombre uno, aapt2 falla en build con el nombre: actualizar esta tabla.
+
+**Fuentes (#6):** headline = JetBrainsMono (`config_headlineFontFamily*` → `jetbrains-mono-nerd*` en `overlay/OmarchyFontOverlay/res/values/config.xml`), body = `sans-serif` stock por defecto (los `config_bodyFontFamily*` no se sombrean; valores stock de la fila `config_bodyFontFamily`/`config_headlineFontFamily` de la tabla Compat de arriba) y body-mono por tema queda para #9.
