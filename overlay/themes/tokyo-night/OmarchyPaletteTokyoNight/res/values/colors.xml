@@ -184,14 +184,14 @@
     <color name="system_tertiary_fixed">#c7e2e6</color>
     <color name="system_tertiary_fixed_dim">#8fc4cd</color>
     <color name="system_tertiary_light">#449dab</color>
-    <color name="system_text_hint_inverse_dark">#a9b1d6</color>
-    <color name="system_text_hint_inverse_light">#a9b1d6</color>
-    <color name="system_text_primary_inverse_dark">#a9b1d6</color>
+    <color name="system_text_hint_inverse_dark">#1a1b26</color>
+    <color name="system_text_hint_inverse_light">#1a1b26</color>
+    <color name="system_text_primary_inverse_dark">#1a1b26</color>
     <color name="system_text_primary_inverse_disable_only_dark">#414868</color>
     <color name="system_text_primary_inverse_disable_only_light">#414868</color>
-    <color name="system_text_primary_inverse_light">#a9b1d6</color>
-    <color name="system_text_secondary_and_tertiary_inverse_dark">#a9b1d6</color>
+    <color name="system_text_primary_inverse_light">#1a1b26</color>
+    <color name="system_text_secondary_and_tertiary_inverse_dark">#1a1b26</color>
     <color name="system_text_secondary_and_tertiary_inverse_disabled_dark">#414868</color>
     <color name="system_text_secondary_and_tertiary_inverse_disabled_light">#414868</color>
-    <color name="system_text_secondary_and_tertiary_inverse_light">#a9b1d6</color>
+    <color name="system_text_secondary_and_tertiary_inverse_light">#1a1b26</color>
 </resources>

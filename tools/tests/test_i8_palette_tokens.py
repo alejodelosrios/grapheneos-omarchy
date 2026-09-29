@@ -4,8 +4,9 @@ Criterios verificables SIN host de build ni Pixel:
   1. self-check de tools/gen-palette.py + wc -l tools/system-colors.txt == 194 (D2).
   2. Nombres de cada overlay/themes/*/*/res/values/colors.xml == tools/system-colors.txt
      (y, más fuerte, identidad byte a byte con el generador = gate `palette`).
-   3. tools/check-contrast.py → todos los pares texto/fondo medidos >= 4.5 (dark y light;
-      PAIRS ampliado en R2/H2 por audit-8 H2 más allá del on_surface/surface del diseño).
+   3. tools/check-contrast.py → todos los pares texto/fondo derivados de
+      tools/system-colors.txt superan su umbral (4.5 texto / 3.0 icono / exento el texto
+      inactivo; derivación automática desde R5, clase cerrada tras audit-8 H2/H5/H6).
 
 Criterios 4 (settings put + captura) y 5 (m OmarchyPalette*) exigen host de build / Pixel:
 NO verificables aquí (al PR, `## No verificado sin host de build`).
@@ -152,11 +153,13 @@ def test_criterio2_cobertura_100_por_tema():
 # --- Criterio 3 ---------------------------------------------------------------
 
 def test_criterio3_contraste_min_4_5():
-    """tools/check-contrast.py → exit 0 y todos los pares OK, ninguno FALLA.
+    """tools/check-contrast.py → exit 0 y todas las medidas presentes, ninguna FALLA.
 
-    Actualizado en R2/H2 (audit-8): PAIRS ampliado a los pares Material 3 que la UI A14+
-    usa (on_surface_variant/{surface,surface_variant} y on_X/on_X_container sobre su fondo
-    homónimo, dark y light) — el recuento se deriva del módulo, no se fija a mano.
+    Actualizado en R5 (clase cerrada): los pares ya no son una lista manual sino que se
+    derivan de tools/system-colors.txt (texto/icono contra su fondo homónimo; 4.5 texto,
+    3.0 icono, exento el texto inactivo). El recuento sigue derivándose del módulo
+    (len(cc.PAIRS)); ahora cuenta líneas medidas (« vs ») en vez de «OK (>= 4.5)», porque
+    el formato nuevo imprime umbrales distintos y líneas «exento».
     """
     tomls = theme_tomls()
     assert len(tomls) == 6, f"esperaba 6 temas, hay {len(tomls)}"
@@ -168,10 +171,10 @@ def test_criterio3_contraste_min_4_5():
         capture_output=True, cwd=REPO, text=True,
     )
     assert out.returncode == 0, f"check-contrast falló:\n{out.stdout}{out.stderr}"
-    assert "FALLA" not in out.stdout, f"par por debajo de 4.5:\n{out.stdout}"
+    assert "FALLA" not in out.stdout, f"par por debajo de su umbral:\n{out.stdout}"
     n_expected = len(cc.PAIRS) * len(tomls)
-    assert out.stdout.count("OK (>= 4.5)") == n_expected, (
-        f"esperaba {n_expected} pares OK:\n{out.stdout}"
+    assert out.stdout.count(" vs ") == n_expected, (
+        f"esperaba {n_expected} medidas:\n{out.stdout}"
     )
 
 

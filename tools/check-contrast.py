@@ -1,15 +1,31 @@
 #!/usr/bin/env python3
-"""WCAG 2.x contrast check for palette themes (design-8 criterio 3 + audit-8 H2).
+"""WCAG 2.x contrast check for palette themes (design-8 criterio 3; clase cerrada en R5).
 
-For every themes/<id>/theme.toml each pair of PAIRS (Material 3 text/background tokens, dark
-and light) must have a WCAG 2.x contrast ratio >= 4.5. Values are resolved through the same
-token mapping as tools/gen-palette.py (imported: single source of truth, no second table).
+Pairs are DERIVED from tools/system-colors.txt — there is no hand-written PAIRS list (H2, H5
+and H6 were all pairs the manual list did not cover). Derivation rules, 100% coverage like
+gen-palette: every text token must find its background IN THE LIST or the check exits != 0
+naming the token.
 
-Pairs (R2/H2 + R4/H5): on_surface/surface, on_surface_variant/{surface,surface_variant},
-on_surface{,_variant}/surface_bright and on_{primary,secondary,tertiary,error} y *_container
-sobre su fondo homónimo.
+  * system_on_<rol>[_<mode>]      -> system_<rol>[_<mode>]       (same mode)
+  * system_on_<rol>_fixed_variant -> system_<rol>_fixed_dim      (M3: the less-emphasised
+    "variant" text sits on the dim fixed container; decided + documented in the i8 PR)
+  * system_text_*_inverse[*]      -> system_inverse_surface[_<mode>]  (snackbars/toasts:
+    M3 pairs textColor*Inverse with inverseSurface, same mode)
+  * system_inverse_on_<rol>[..]   -> system_inverse_<rol>[..]    (same mode)
 
-Exit != 0 if any pair falls below 4.5.
+Not text (out of the sweep, classified here so nothing is silent): outline_* (borders),
+control_* (legacy AOSP textColorControl* used as control state tints), scrim/shadow (overlay),
+the 65+13 ramps, palette_key_color_* (seeds), notification_accent_color (accent singleton),
+and every surface/background/primary/… role.
+
+Thresholds (explicit, never silent):
+  * 4.5 text (WCAG 2.x AA) — default
+  * DISABLED set below: inactive-UI text is exempt (WCAG 2.x 1.4.3 "part of an inactive user
+    interface component"): measured and printed as "exento", never decides the exit
+  * ICONS dict below: 3.0 (WCAG 2.x 1.4.11 non-text) per named icon/accent pair
+
+Exit != 0 if any non-exempt pair falls below its threshold, or a text token has no pairable
+background.
 
 Usage: tools/check-contrast.py [themes/<id>/theme.toml ...]   (default: themes/*/theme.toml)
 """
@@ -17,25 +33,26 @@ import importlib.util, sys, tomllib
 from pathlib import Path
 
 THRESHOLD = 4.5
-FAMILIES = ("primary", "secondary", "tertiary", "error")
-PAIRS = [
-    ("dark", "system_on_surface_dark", "system_surface_dark"),
-    ("light", "system_on_surface_light", "system_surface_light"),
-    ("dark", "system_on_surface_variant_dark", "system_surface_dark"),
-    ("light", "system_on_surface_variant_light", "system_surface_light"),
-    ("dark", "system_on_surface_variant_dark", "system_surface_variant_dark"),
-    ("light", "system_on_surface_variant_light", "system_surface_variant_light"),
-    # R4/H5: texto sobre surface_bright (rol de superficie M3)
-    ("dark", "system_on_surface_dark", "system_surface_bright_dark"),
-    ("light", "system_on_surface_light", "system_surface_bright_light"),
-    ("dark", "system_on_surface_variant_dark", "system_surface_bright_dark"),
-    ("light", "system_on_surface_variant_light", "system_surface_bright_light"),
-]
-for _fam in FAMILIES:
-    for _mode in ("dark", "light"):
-        PAIRS.append((_mode, f"system_on_{_fam}_{_mode}", f"system_{_fam}_{_mode}"))
-        PAIRS.append((_mode, f"system_on_{_fam}_container_{_mode}",
-                      f"system_{_fam}_container_{_mode}"))
+ICON_THRESHOLD = 3.0
+TEXT_PREFIXES = ("on_", "text_", "inverse_on_")  # tras "system_": los tokens de texto
+
+# Exención explícita (nunca silenciosa): texto de componente inactivo — WCAG 2.x 1.4.3.
+DISABLED = {
+    "system_on_surface_disabled",
+    "system_text_primary_inverse_disable_only_dark",
+    "system_text_primary_inverse_disable_only_light",
+    "system_text_secondary_and_tertiary_inverse_disabled_dark",
+    "system_text_secondary_and_tertiary_inverse_disabled_light",
+}
+
+# Pares icono/decorativo al 3.0 (WCAG 2.x 1.4.11 non-text), justificados por nombre:
+ICONS = {
+    # M3 inversePrimary: icono/acento sobre la superficie invertida (FAB, acción de snackbar),
+    # no texto de lectura — de ahí 3.0 y no 4.5.
+    "system_inverse_primary_dark": "system_inverse_surface_dark",
+    "system_inverse_primary_light": "system_inverse_surface_light",
+}
+
 
 def load_gen():
     spec = importlib.util.spec_from_file_location(
@@ -57,19 +74,64 @@ def contrast(h1, h2, hex2rgb):
     a, b = sorted((luminance(hex2rgb(h1)), luminance(hex2rgb(h2))), reverse=True)
     return (a + 0.05) / (b + 0.05)
 
+def _split_mode(rest):
+    for mode in ("dark", "light"):
+        if rest.endswith("_" + mode):
+            return rest[: -(len(mode) + 1)], mode
+    return rest, None
+
+def background_for(name):
+    """Fondo emparejable de un token de texto (reglas del docstring); None si no aplica."""
+    if name.startswith("system_on_"):
+        rol, mode = _split_mode(name[len("system_on_"):])
+        if rol.endswith("_fixed_variant"):
+            rol = rol[: -len("_fixed_variant")] + "_fixed_dim"
+        return "system_" + rol + (f"_{mode}" if mode else "")
+    if name.startswith("system_text_") and "_inverse" in name:
+        _, mode = _split_mode(name[len("system_text_"):])
+        return "system_inverse_surface" + (f"_{mode}" if mode else "")
+    if name.startswith("system_inverse_on_"):
+        return "system_inverse_" + name[len("system_inverse_on_"):]
+    return None
+
+def derive_pairs(names):
+    """(fg, bg, kind) por cada token de texto/icono de tools/system-colors.txt (regla 100%)."""
+    known = set(names)
+    pairs = []
+    for name in names:
+        if name in ICONS:
+            pairs.append((name, ICONS[name], "icon"))
+            continue
+        if not name[len("system_"):].startswith(TEXT_PREFIXES):
+            continue  # no es texto (clasificación en el docstring, no silenciosa)
+        bg = background_for(name)
+        if bg not in known:
+            sys.exit(f"check-contrast: {name}: sin fondo emparejable en system-colors.txt "
+                     f"(esperaba {bg}) — regla 100%")
+        pairs.append((name, bg, "disabled" if name in DISABLED else "text"))
+    return pairs
+
+NAMES = tuple(ln for ln in
+              Path(__file__).with_name("system-colors.txt").read_text().splitlines() if ln.strip())
+PAIRS = derive_pairs(NAMES)  # derivado del txt: el recuento que usan los tests sale de aquí
+
 def main(paths):
     gp = load_gen()
     bad = False
     for path in paths:
         theme = tomllib.loads(Path(path).read_text())
         colors = gp.palette(theme)
-        for mode, fg_name, bg_name in PAIRS:
+        for fg_name, bg_name, kind in PAIRS:
             ratio = contrast(colors[fg_name], colors[bg_name], gp.hex2rgb)
-            ok = ratio >= THRESHOLD
-            bad |= not ok
-            print(f"{path} [{mode}] {fg_name}={colors[fg_name]} vs "
-                  f"{bg_name}={colors[bg_name]}: {ratio:.2f} "
-                  f"{'OK' if ok else 'FALLA'} (>= {THRESHOLD})")
+            if kind == "disabled":
+                status = "exento (WCAG 1.4.3)"
+            else:
+                thr = ICON_THRESHOLD if kind == "icon" else THRESHOLD
+                ok = ratio >= thr
+                bad |= not ok
+                status = f"OK (>= {thr:g})" if ok else f"FALLA (< {thr:g})"
+            print(f"{path} {fg_name}={colors[fg_name]} vs "
+                  f"{bg_name}={colors[bg_name]}: {ratio:.2f} {status}")
     sys.exit(1 if bad else 0)
 
 if __name__ == "__main__":

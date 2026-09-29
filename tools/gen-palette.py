@@ -21,6 +21,10 @@ otherwise) — no raw value reaches the XML unvalidated.
 H5 (audit-8 ronda 2): `system_surface_bright_*` is a M3 *surface* role, so it maps to a dark
 surface (`lighter_background`), not to a text colour — light text over light surface was 1.15.
 
+H6 (audit-8 ronda 3): `system_text_*_inverse_*` map to `background`, the same source as
+`system_inverse_on_surface_*`, so inverted text contrasts its `inverse_surface_*` (was 1.00:1).
+Disabled text stays `muted` (WCAG 1.4.3 exempts inactive UI).
+
 Usage: tools/gen-palette.py themes/tokyo-night/theme.toml > overlay/themes/tokyo-night/OmarchyPaletteTokyoNight/res/values/colors.xml
 """
 import re, sys, tomllib
@@ -51,7 +55,9 @@ ERROR_KEY = "red"  # rampa system_error_{0..1000} <- red, misma función tone (d
 #     contra sus fondos, gana el primer candidato que lo haga (claro sobre oscuro y viceversa).
 #   fixed->tone(base,150), fixed_dim->tone(base,300), container_dark->tone(base,800),
 #     container_light->tone(base,200); pares _dark/_light con el mismo hex base salvo fixed/container
-#   text*->foreground (colas disabled/disable_only->muted); outline*->muted
+#   text*->foreground salvo text_*_inverse->background (R5/H6: texto sobre inverse_surface;
+#     foreground daba 1.00:1 con inverse_surface); colas disabled/disable_only->muted;
+#     outline*->muted
 #   control*->accent|muted (activado/realce->accent, normal->muted)
 #   scrim|shadow->darker_background; notification_accent_color->accent
 #   palette_key_color_*->clave base exacta (neutral->background, neutral_variant->lighter_background)
@@ -141,16 +147,19 @@ TOKENS = {
     "system_inverse_primary_dark": ("dark_background",),
     "system_inverse_primary_light": ("dark_background",),
     # --- text* ---
-    "system_text_primary_inverse_dark": ("foreground",),
-    "system_text_primary_inverse_light": ("foreground",),
+    # R5/H6: texto invertido sobre inverse_surface -> background (mismo origen que
+    # inverse_on_surface; foreground daba 1.00:1). Los *_disabled/*_disable_only se quedan
+    # en muted: texto de componente inactivo, WCAG 1.4.3 los exime.
+    "system_text_primary_inverse_dark": ("background",),
+    "system_text_primary_inverse_light": ("background",),
     "system_text_primary_inverse_disable_only_dark": ("muted",),
     "system_text_primary_inverse_disable_only_light": ("muted",),
-    "system_text_secondary_and_tertiary_inverse_dark": ("foreground",),
-    "system_text_secondary_and_tertiary_inverse_light": ("foreground",),
+    "system_text_secondary_and_tertiary_inverse_dark": ("background",),
+    "system_text_secondary_and_tertiary_inverse_light": ("background",),
     "system_text_secondary_and_tertiary_inverse_disabled_dark": ("muted",),
     "system_text_secondary_and_tertiary_inverse_disabled_light": ("muted",),
-    "system_text_hint_inverse_dark": ("foreground",),
-    "system_text_hint_inverse_light": ("foreground",),
+    "system_text_hint_inverse_dark": ("background",),
+    "system_text_hint_inverse_light": ("background",),
     # --- outline* ---
     "system_outline_dark": ("muted",),
     "system_outline_light": ("muted",),
