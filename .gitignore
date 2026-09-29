@@ -11,9 +11,6 @@ releases/
 *.pk8
 *.x509.pem
 avb_pkmd.bin
-# Generated palettes (rebuilt by tools/gen-palette.py; commit only tokyo-night as reference)
-overlay/themes/*/*/res/values/colors.xml
-!overlay/themes/tokyo-night/**/colors.xml
 # Editor / OS
 .idea/
 *.iml

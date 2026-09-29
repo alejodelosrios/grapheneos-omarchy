@@ -181,3 +181,32 @@ def test_tonos_base_y_determinismo():
     assert runs[0].returncode == 0 and runs[1].returncode == 0
     assert runs[0].stdout == runs[1].stdout, "gen-palette.py no es determinista"
     assert runs[0].stdout, "gen-palette.py no emitió XML"
+
+
+# --- Entregables trackeados (audit-8 H1) --------------------------------------
+
+def test_colors_xml_trackeados():
+    """Todo RRO de paleta (overlay/themes/*/*/ con Android.bp) debe tener su
+    res/values/colors.xml trackeado por git (`git ls-files --error-unmatch`).
+
+    El gate `palette` hace glob del disco: sin este test, un colors.xml sin commitear
+    construye una RRO vacía en un clon limpio sin que nada se ponga rojo (audit-8 H1).
+    Sabotaje que lo vio en rojo: los 5 colors.xml de i8 sin `git add` -> exit 1 de
+    ls-files --error-unmatch -> AssertionError por fichero.
+    """
+    rros = sorted(
+        d for d in (REPO / "overlay" / "themes").glob("*/*")
+        if d.is_dir() and (d / "Android.bp").is_file()
+    )
+    assert rros, "no hay RROs de paleta (overlay/themes/*/*/Android.bp)"
+    for rro in rros:
+        xml = rro / "res" / "values" / "colors.xml"
+        rel = xml.relative_to(REPO)
+        assert xml.is_file(), f"{rro.relative_to(REPO)}: falta res/values/colors.xml"
+        out = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", str(rel)],
+            capture_output=True, cwd=REPO, text=True,
+        )
+        assert out.returncode == 0, (
+            f"{rel}: NO trackeado por git (entregable sin commitear)"
+        )
