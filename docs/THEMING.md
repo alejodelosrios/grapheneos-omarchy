@@ -86,6 +86,10 @@ no existe (no es OmarchyOS) `query` devuelve `null`: caer al nivel 0.
 | `config_bodyFontFamily`, `config_headlineFontFamily` (+Medium) | `core/res/res/values/config.xml:5556-5645` | OmarchyFontOverlay |
 | `notification_corner_radius`, `qs_corner_radius`, `qs_tile_margin_horizontal`, `qs_panel_padding`, `notification_shade_content_margin_horizontal` | `packages/SystemUI/res/values/dimens.xml:355,705,706,734,809` | OmarchySystemUIOverlay |
 | `config_qsTileStrokeWidthActive/Inactive` | `packages/SystemUI/res/values/config.xml:374-375` | OmarchySystemUIOverlay |
+| `drawable/notification_material_bg` (+ variante `drawable-night/`) — reescrito con referencias solo públicas/locales (`system_surface_container_high_{light,dark}` + stroke 1dp `system_accent1_500`) | `packages/SystemUI/res/drawable/notification_material_bg.xml` | OmarchySystemUIOverlay |
+| `color/omarchy_notification_state_color` (+ variante night, nombres propios del overlay) | `packages/SystemUI/res/color/notification_state_color_default.xml` | OmarchySystemUIOverlay |
+| `color/omarchy_notification_focus_overlay_color` (+ variante night, nombres propios del overlay) | `packages/SystemUI/res/color/notification_focus_overlay_color.xml` | OmarchySystemUIOverlay |
+| `status_bar_clock_color` | `packages/SystemUI/res/values/colors.xml:26` | OmarchySystemUIOverlay |
 | `system_{accent1,accent2,accent3,neutral1,neutral2}_{0..1000}` | `core/res/res/values/public-final.xml` | OmarchyPalette* |
 
 Cuando un release mensual renombre uno, aapt2 falla en build con el nombre: actualizar esta tabla.
