@@ -13,6 +13,11 @@ PRODUCT_PACKAGES += \
 # Switchable palettes: one mutable RRO per theme, exactly one enabled at a time
 # (category android.theme.customization.system_palette, driven by OmarchyTheme)
 PRODUCT_PACKAGES += \
+    OmarchyPaletteCatppuccin \
+    OmarchyPaletteEverforest \
+    OmarchyPaletteGruvbox \
+    OmarchyPaletteKanagawa \
+    OmarchyPaletteNord \
     OmarchyPaletteTokyoNight
 
 # Theme service + picker + QS tile + ContentProvider for third-party apps
