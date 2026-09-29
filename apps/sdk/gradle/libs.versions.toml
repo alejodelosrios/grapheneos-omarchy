@@ -1,0 +1,42 @@
+[versions]
+# 2026-09-29, Maven Central / dl.google.com. AGP 9.4 built-in Kotlin: see
+# https://developer.android.com/build/migrate-to-built-in-kotlin — no separate
+# org.jetbrains.kotlin.android plugin is applied. compileSdk 37 is the max AGP
+# 9.4 supports (https://developer.android.com/build/releases/agp-9-4-0-release-notes,
+# table "Compatibility": Gradle min/default 9.6.0, JDK min/default 17). Robolectric
+# 4.17 supports SDK 37 (https://github.com/robolectric/robolectric/releases/tag/robolectric-4.17).
+agp = "9.4.1"
+compileSdk = "37"
+minSdk = "31"
+coreKtx = "1.19.1"
+coroutinesAndroid = "1.11.0"
+robolectric = "4.17"
+junit = "4.13.2"
+androidxTestCore = "1.7.0"
+# D2 (design-10): Compose BOM + friends, kotlin-compose plugin. AGP 9.4 built-in Kotlin
+# doesn't change how the Compose compiler plugin is applied: it's the same Kotlin Gradle
+# plugin either way (https://developer.android.com/develop/ui/compose/compiler, "Important
+# Note on Kotlin Versions"); org.jetbrains.kotlin.android is still not applied
+# (https://developer.android.com/build/migrate-to-built-in-kotlin).
+kotlinCompose = "2.4.20"
+composeBom = "2026.09.00"
+activityCompose = "1.13.0"
+lifecycleRuntimeCompose = "2.11.0"
+
+[libraries]
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutinesAndroid" }
+junit = { module = "junit:junit", version.ref = "junit" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+androidx-test-core = { module = "androidx.test:core", version.ref = "androidxTestCore" }
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
+androidx-compose-ui = { module = "androidx.compose.ui:ui" }
+androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycleRuntimeCompose" }
+
+[plugins]
+android-library = { id = "com.android.library", version.ref = "agp" }
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlinCompose" }
