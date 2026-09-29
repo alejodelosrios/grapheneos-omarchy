@@ -18,6 +18,18 @@ Criterios verificables SIN host de build ni Pixel:
   S5. El manifest de la lib tiene <queries><provider android:authorities="org.omarchy.
       theme"/></queries>.
 
+Ronda de auditoría #10 (RECHAZO 1/2), corregida en be1ee1e:
+  H1. En OmarchyTheme.kt `flow`: `registerContentObserver(` va dentro de un `try { }
+      catch (e: SecurityException)`, y `awaitClose` solo desregistra si `registered` es
+      true; `current()` captura `RuntimeException` (no solo `SecurityException`).
+  M1. En OmarchyColorScheme.kt `schemeFor`, los roles `on*` de mayor riesgo de contraste
+      (onPrimary, onPrimaryContainer, onSurfaceVariant, onError, onBackground, onSurface)
+      pasan por `onColor(`/`pickText(`, nunca por `hex(` directo. El test de contraste
+      real (WCAG AA) es el JUnit `OmarchyColorSchemeContrastTest`, no se duplica aquí.
+  L5. `notify_after_broadcast` ignora comentarios (// y /* */) para que la mención de
+      `sendBroadcast` en el KDoc no cuente como código y un `notifyChange` comentado no
+      cuele. `id_pattern_used_in_parse` acota el cuerpo de `parse` por conteo de llaves.
+
 Compatible con pytest y con tools/tests/run_tests.py (funciones `test_*`, sin fixtures,
 stdlib). Cada test se vio en ROJO con su sabotaje sobre el texto en memoria (ver reporte
 de QA): nunca se edita un archivo del repo.
@@ -45,6 +57,10 @@ LIB_THEME_KT = (
     / "org" / "omarchy" / "theme" / "sdk" / "OmarchyTheme.kt"
 )
 LIB_MANIFEST = REPO / "apps" / "sdk" / "omarchy-theme-android" / "src" / "main" / "AndroidManifest.xml"
+LIB_COMPOSE_KT = (
+    REPO / "apps" / "sdk" / "omarchy-theme-compose" / "src" / "main" / "kotlin"
+    / "org" / "omarchy" / "theme" / "sdk" / "compose" / "OmarchyColorScheme.kt"
+)
 
 SDK_MAIN_ROOT = REPO / "apps" / "sdk"
 
@@ -123,10 +139,83 @@ def has_protected_broadcast(manifest_text: str) -> bool:
     return False
 
 
+def strip_comments(text: str) -> str:
+    """Quita comentarios `/* ... */` y `// ...` (naive, alcanza para este .kt: no hay
+    literales con `//` fuera de comentario). Así un `sendBroadcast(` mencionado en un KDoc
+    no cuenta como código, ni un `notifyChange(...)` comentado."""
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    text = re.sub(r"//[^\n]*", "", text)
+    return text
+
+
 def notify_after_broadcast(text: str) -> bool:
-    i_broadcast = text.find("sendBroadcast(")
-    i_notify = text.find("notifyChange(ThemeContract.CURRENT")
+    code = strip_comments(text)
+    i_broadcast = code.find("sendBroadcast(")
+    i_notify = code.find("notifyChange(ThemeContract.CURRENT")
     return i_broadcast != -1 and i_notify != -1 and i_broadcast < i_notify
+
+
+def _braced_span_from(text: str, brace_start: int) -> int:
+    """Índice justo después del `}` que cierra la llave abierta en `brace_start`."""
+    depth = 0
+    i = brace_start
+    while i < len(text):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    raise AssertionError("no se encontró el cierre de llaves")
+
+
+def extract_braced_block(text: str, start_pattern: str) -> str:
+    """El bloque `{ ... }` que sigue al primer match de `start_pattern`, delimitado por
+    conteo de llaves (no hasta el final del archivo ni con un cierre "adivinado")."""
+    m = re.search(start_pattern, text)
+    assert m, f"no se encontró el patrón: {start_pattern}"
+    start = text.index("{", m.end())
+    end = _braced_span_from(text, start)
+    return text[start:end]
+
+
+def extract_try_with_catches(text: str, start_pattern: str) -> str:
+    """Como [extract_braced_block] para un `try { ... }`, pero se sigue tragando cada
+    `catch (...) { ... }` inmediatamente posterior (una expresión try/catch es varios
+    bloques `{ }` hermanos, no uno solo)."""
+    m = re.search(start_pattern, text)
+    assert m, f"no se encontró el patrón: {start_pattern}"
+    start = text.index("{", m.end())
+    end = _braced_span_from(text, start)
+    while True:
+        catch_m = re.match(r"\s*catch\s*\([^)]*\)\s*", text[end:])
+        if not catch_m:
+            break
+        catch_brace = end + catch_m.end()
+        assert text[catch_brace] == "{", "catch sin bloque `{ }`"
+        end = _braced_span_from(text, catch_brace)
+    return text[start:end]
+
+
+def extract_paren_block(text: str, start_pattern_ending_in_open_paren: str) -> str:
+    """El bloque `( ... )` que abre el `(` final de `start_pattern_ending_in_open_paren`,
+    delimitado por conteo de paréntesis."""
+    m = re.search(start_pattern_ending_in_open_paren, text)
+    assert m, f"no se encontró el patrón: {start_pattern_ending_in_open_paren}"
+    start = m.end() - 1
+    assert text[start] == "(", "el patrón debe terminar justo en el `(` de apertura"
+    depth = 0
+    i = start
+    while i < len(text):
+        if text[i] == "(":
+            depth += 1
+        elif text[i] == ")":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+        i += 1
+    raise AssertionError(f"no se encontró el cierre de paréntesis de: {start_pattern_ending_in_open_paren}")
 
 
 FORBIDDEN_EXTRAS_PATTERNS = ["getStringExtra", "getExtras", ".extras", "registerReceiver", "BroadcastReceiver"]
@@ -141,10 +230,63 @@ def sdk_main_kt_files() -> list[Path]:
 
 
 def id_pattern_used_in_parse(text: str) -> bool:
-    m = re.search(r"fun parse\(cursor: Cursor\?\).*", text, re.DOTALL)
-    assert m, "no se encontró fun parse(cursor: Cursor?)"
-    body = m.group(0)
+    body = extract_braced_block(text, r"fun parse\(cursor: Cursor\?\): OmarchyTheme\?\s*")
     return "ID_REGEX" in body and "OmarchyThemeContract.ID_PATTERN" in text
+
+
+FLOW_SIGNATURE = r"fun flow\(ctx: Context\): Flow<OmarchyTheme\?>\s*=\s*"
+CURRENT_SIGNATURE = r"fun current\(ctx: Context\): OmarchyTheme\?\s*=\s*"
+
+
+def flow_body(text: str) -> str:
+    return extract_braced_block(text, FLOW_SIGNATURE)
+
+
+def current_body(text: str) -> str:
+    return extract_try_with_catches(text, CURRENT_SIGNATURE)
+
+
+def register_observer_in_try_catch_security(flow_text: str) -> bool:
+    return (
+        re.search(
+            r"try\s*\{[^{}]*?registerContentObserver\([^{}]*?\)[^{}]*?\}\s*catch\s*\(e:\s*SecurityException\)\s*\{",
+            flow_text,
+            re.DOTALL,
+        )
+        is not None
+    )
+
+
+def awaitclose_unregisters_only_if_registered(flow_text: str) -> bool:
+    return (
+        re.search(
+            r"awaitClose\s*\{\s*if\s*\(registered\)\s*ctx\.contentResolver\.unregisterContentObserver\(observer\)\s*\}",
+            flow_text,
+        )
+        is not None
+    )
+
+
+def current_catches_runtime_exception(current_text: str) -> bool:
+    return "catch (e: RuntimeException)" in current_text and "catch (e: SecurityException)" not in current_text
+
+
+ONCOLOR_DIRECT_ROLES = ["onPrimary", "onPrimaryContainer", "onSurfaceVariant", "onError"]
+
+
+def role_via_oncolor(copy_block_text: str, role: str) -> bool:
+    return re.search(rf"\b{role}\s*=\s*onColor\(", copy_block_text) is not None
+
+
+def role_via_hex_directo(copy_block_text: str, role: str) -> bool:
+    return re.search(rf"\b{role}\s*=\s*hex\(theme", copy_block_text) is not None
+
+
+def onbackground_onsurface_via_oncolor_var(text: str, copy_block_text: str) -> bool:
+    has_var = re.search(r"val onBackgroundColor\s*=\s*onColor\(", text) is not None
+    used_bg = re.search(r"\bonBackground\s*=\s*onBackgroundColor\b", copy_block_text) is not None
+    used_surface = re.search(r"\bonSurface\s*=\s*onBackgroundColor\b", copy_block_text) is not None
+    return has_var and used_bg and used_surface
 
 
 def onchange_body(text: str) -> str:
@@ -278,10 +420,34 @@ def test_i10_s3_notifychange_despues_de_sendbroadcast():
 def test_i10_s3_sabotaje_orden_invertido_da_rojo():
     text = APP_SWITCHER_KT.read_text()
     assert notify_after_broadcast(text)
-    # Cuela una llamada a notifyChange(ThemeContract.CURRENT antes de cualquier
-    # sendBroadcast( del archivo (incluida la mención en el KDoc), simulando que el
-    # observer se notifica primero que el broadcast.
-    sabotaged = "// notifyChange(ThemeContract.CURRENT, null) // adelantado\n" + text
+    # Intercambia los dos bloques de código reales (no comentarios): notifyChange queda
+    # antes que el sendBroadcast real.
+    broadcast_block = (
+        "        // 5. Notify listeners.\n"
+        "        context.sendBroadcast(\n"
+        "            Intent(ThemeContract.ACTION_THEME_CHANGED)\n"
+        "                .putExtra(ThemeContract.EXTRA_THEME_ID, themeId)\n"
+        "                .putExtra(ThemeContract.EXTRA_MODE, theme.mode),\n"
+        "        )\n"
+    )
+    notify_block = (
+        "        // 5b. Wake up ContentResolver observers (the lib's flow(ctx), not a broadcast receiver).\n"
+        "        context.contentResolver.notifyChange(ThemeContract.CURRENT, null)\n"
+    )
+    combo = broadcast_block + "\n" + notify_block
+    assert combo in text, "no se encontraron los dos bloques consecutivos esperados"
+    swapped = notify_block + "\n" + broadcast_block
+    sabotaged = text.replace(combo, swapped, 1)
+    assert sabotaged != text
+    assert not notify_after_broadcast(sabotaged)
+
+
+def test_i10_s3_sabotaje_notifychange_comentado_da_rojo():
+    text = APP_SWITCHER_KT.read_text()
+    assert notify_after_broadcast(text)
+    line = "        context.contentResolver.notifyChange(ThemeContract.CURRENT, null)\n"
+    assert line in text, "no se encontró la línea real de notifyChange"
+    sabotaged = text.replace(line, "        // " + line.strip() + "\n", 1)
     assert sabotaged != text
     assert not notify_after_broadcast(sabotaged)
 
@@ -346,3 +512,106 @@ def test_i10_s5_sabotaje_sin_queries_da_rojo():
     )
     assert sabotaged != manifest_text, "el sabotaje no encontró <queries>"
     assert not lib_manifest_has_provider_queries(sabotaged)
+
+
+# --- H1 (auditoría #10, RECHAZO 1/2) ------------------------------------------------
+
+
+def test_i10_h1_registercontentobserver_en_try_catch_securityexception():
+    body = flow_body(LIB_THEME_KT.read_text())
+    assert register_observer_in_try_catch_security(body)
+
+
+def test_i10_h1_sabotaje_sin_try_catch_da_rojo():
+    text = LIB_THEME_KT.read_text()
+    assert register_observer_in_try_catch_security(flow_body(text))
+    original_block = (
+        "                val registered =\n"
+        "                    try {\n"
+        "                        ctx.contentResolver.registerContentObserver(\n"
+        "                            OmarchyThemeContract.CURRENT,\n"
+        "                            false,\n"
+        "                            observer,\n"
+        "                        )\n"
+        "                        true\n"
+        "                    } catch (e: SecurityException) {\n"
+        "                        // No provider (stock AOSP): keep the initial emission, nothing to\n"
+        "                        // unregister.\n"
+        "                        false\n"
+        "                    }\n"
+    )
+    sabotaged_block = (
+        "                val registered =\n"
+        "                    run {\n"
+        "                        ctx.contentResolver.registerContentObserver(\n"
+        "                            OmarchyThemeContract.CURRENT,\n"
+        "                            false,\n"
+        "                            observer,\n"
+        "                        )\n"
+        "                        true\n"
+        "                    }\n"
+    )
+    assert original_block in text, "no se encontró el bloque try/catch de registerContentObserver"
+    sabotaged = text.replace(original_block, sabotaged_block, 1)
+    assert sabotaged != text
+    assert not register_observer_in_try_catch_security(flow_body(sabotaged))
+
+
+def test_i10_h1_awaitclose_desregistra_solo_si_registered():
+    body = flow_body(LIB_THEME_KT.read_text())
+    assert awaitclose_unregisters_only_if_registered(body)
+
+
+def test_i10_h1_sabotaje_awaitclose_desregistra_incondicional_da_rojo():
+    text = LIB_THEME_KT.read_text()
+    assert awaitclose_unregisters_only_if_registered(flow_body(text))
+    line = "awaitClose { if (registered) ctx.contentResolver.unregisterContentObserver(observer) }"
+    assert line in text
+    sabotaged = text.replace(
+        line, "awaitClose { ctx.contentResolver.unregisterContentObserver(observer) }", 1
+    )
+    assert sabotaged != text
+    assert not awaitclose_unregisters_only_if_registered(flow_body(sabotaged))
+
+
+def test_i10_h1_current_captura_runtimeexception():
+    body = current_body(LIB_THEME_KT.read_text())
+    assert current_catches_runtime_exception(body)
+
+
+def test_i10_h1_sabotaje_current_vuelve_a_securityexception_da_rojo():
+    text = LIB_THEME_KT.read_text()
+    assert current_catches_runtime_exception(current_body(text))
+    original = "catch (e: RuntimeException) {"
+    assert original in text
+    sabotaged = text.replace(original, "catch (e: SecurityException) {", 1)
+    assert sabotaged != text
+    assert not current_catches_runtime_exception(current_body(sabotaged))
+
+
+# --- M1 (auditoría #10, RECHAZO 1/2) ------------------------------------------------
+
+
+def test_i10_m1_oncolor_roles_de_riesgo_no_usan_hex_directo():
+    text = LIB_COMPOSE_KT.read_text()
+    block = extract_paren_block(text, r"return base\.copy\(")
+    for role in ONCOLOR_DIRECT_ROLES:
+        assert role_via_oncolor(block, role), f"{role} no pasa por onColor("
+        assert not role_via_hex_directo(block, role), f"{role} usa hex(theme directo"
+    assert onbackground_onsurface_via_oncolor_var(text, block), (
+        "onBackground/onSurface no comparten onBackgroundColor calculado con onColor("
+    )
+
+
+def test_i10_m1_sabotaje_onerror_directo_por_hex_da_rojo():
+    text = LIB_COMPOSE_KT.read_text()
+    block = extract_paren_block(text, r"return base\.copy\(")
+    assert role_via_oncolor(block, "onError")
+    original = 'onError = onColor("background", listOf("red"), base.onError),'
+    sabotaged_line = 'onError = hex(theme, "red") ?: base.onError,'
+    assert original in text, "no se encontró la línea de onError"
+    sabotaged = text.replace(original, sabotaged_line, 1)
+    assert sabotaged != text
+    sabotaged_block = extract_paren_block(sabotaged, r"return base\.copy\(")
+    assert not role_via_oncolor(sabotaged_block, "onError")
+    assert role_via_hex_directo(sabotaged_block, "onError")
