@@ -18,6 +18,9 @@ dark backgrounds and vice versa, linear mixing only (no `--hct`).
 H3 (audit-8): every theme.toml key used here must be `#rrggbb` (exit != 0 naming the key
 otherwise) — no raw value reaches the XML unvalidated.
 
+H5 (audit-8 ronda 2): `system_surface_bright_*` is a M3 *surface* role, so it maps to a dark
+surface (`lighter_background`), not to a text colour — light text over light surface was 1.15.
+
 Usage: tools/gen-palette.py themes/tokyo-night/theme.toml > overlay/themes/tokyo-night/OmarchyPaletteTokyoNight/res/values/colors.xml
 """
 import re, sys, tomllib
@@ -33,7 +36,9 @@ ERROR_KEY = "red"  # rampa system_error_{0..1000} <- red, misma función tone (d
 # Tokens A14+ (116): name -> clave theme.toml, opcionalmente tono. Reglas del diseño
 # (design-8 «Mapeo de roles»); en claro, las lecturas ambiguas documentadas en el reporte:
 #   surface*/background*: container*->lighter_background, dim->darker_background,
-#     bright->light_foreground, variant->muted, tint->accent, disabled->muted
+#     bright->lighter_background (R4/H5: «bright» es superficie algo más clara en M3, no texto;
+#     light_foreground daba 1.15–1.53 con on_surface encima), variant->muted, tint->accent,
+#     disabled->muted
 #   on_* en superficie: on_surface->foreground, on_background->bright_foreground
 #     (pareja «foreground|bright_foreground»); disabled->muted
 #   on_* sobre primarios/error («texto oscuro sobre acento», pareja «dark_background|darker_background»):
@@ -59,8 +64,8 @@ TOKENS = {
     "system_surface_light": ("background",),
     "system_surface_dim_dark": ("darker_background",),
     "system_surface_dim_light": ("darker_background",),
-    "system_surface_bright_dark": ("light_foreground",),
-    "system_surface_bright_light": ("light_foreground",),
+    "system_surface_bright_dark": ("lighter_background",),   # R4/H5: rol de superficie, no texto
+    "system_surface_bright_light": ("lighter_background",),  # (era light_foreground: 1.15–1.53)
     "system_surface_variant_dark": ("muted",),
     "system_surface_variant_light": ("muted",),
     "system_surface_tint_dark": ("accent",),

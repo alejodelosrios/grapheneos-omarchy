@@ -157,8 +157,8 @@
     <color name="system_secondary_light">#ad8ee6</color>
     <color name="system_shadow_dark">#0e0e14</color>
     <color name="system_shadow_light">#0e0e14</color>
-    <color name="system_surface_bright_dark">#b4bee6</color>
-    <color name="system_surface_bright_light">#b4bee6</color>
+    <color name="system_surface_bright_dark">#24283b</color>
+    <color name="system_surface_bright_light">#24283b</color>
     <color name="system_surface_container_dark">#24283b</color>
     <color name="system_surface_container_high_dark">#24283b</color>
     <color name="system_surface_container_high_light">#24283b</color>

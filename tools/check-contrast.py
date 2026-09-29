@@ -5,8 +5,9 @@ For every themes/<id>/theme.toml each pair of PAIRS (Material 3 text/background 
 and light) must have a WCAG 2.x contrast ratio >= 4.5. Values are resolved through the same
 token mapping as tools/gen-palette.py (imported: single source of truth, no second table).
 
-Pairs (R2/H2): on_surface/surface, on_surface_variant/{surface,surface_variant} and
-on_{primary,secondary,tertiary,error} y *_container sobre su fondo homónimo.
+Pairs (R2/H2 + R4/H5): on_surface/surface, on_surface_variant/{surface,surface_variant},
+on_surface{,_variant}/surface_bright and on_{primary,secondary,tertiary,error} y *_container
+sobre su fondo homónimo.
 
 Exit != 0 if any pair falls below 4.5.
 
@@ -24,6 +25,11 @@ PAIRS = [
     ("light", "system_on_surface_variant_light", "system_surface_light"),
     ("dark", "system_on_surface_variant_dark", "system_surface_variant_dark"),
     ("light", "system_on_surface_variant_light", "system_surface_variant_light"),
+    # R4/H5: texto sobre surface_bright (rol de superficie M3)
+    ("dark", "system_on_surface_dark", "system_surface_bright_dark"),
+    ("light", "system_on_surface_light", "system_surface_bright_light"),
+    ("dark", "system_on_surface_variant_dark", "system_surface_bright_dark"),
+    ("light", "system_on_surface_variant_light", "system_surface_bright_light"),
 ]
 for _fam in FAMILIES:
     for _mode in ("dark", "light"):
