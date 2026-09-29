@@ -34,9 +34,13 @@ PRODUCT_COPY_FILES += \
     $(OMARCHY_DIR)/fonts/fonts_customization.xml:$(TARGET_COPY_OUT_PRODUCT)/etc/fonts_customization.xml \
     $(foreach f,$(wildcard $(OMARCHY_DIR)/fonts/*.ttf),$(f):$(TARGET_COPY_OUT_PRODUCT)/fonts/$(notdir $(f)))
 
-# Theme catalog readable by OmarchyTheme (theme.toml + backgrounds), mirrors ~/.config/omarchy/themes
+# Theme catalog readable by OmarchyTheme (theme.toml + backgrounds), mirrors ~/.config/omarchy/themes.
+# OMARCHY_BG_EXTS must match BACKGROUND_EXTENSIONS in
+# apps/OmarchyTheme/src/org/omarchy/theme/ThemeCatalog.kt; tools/tests/test_i11_*.py checks they agree.
+# Only theme.toml and background images with these extensions are copied (e.g. ATTRIBUTION.md is not).
+OMARCHY_BG_EXTS := jpg jpeg png webp
 PRODUCT_COPY_FILES += \
-    $(foreach f,$(wildcard $(OMARCHY_DIR)/themes/*/theme.toml $(OMARCHY_DIR)/themes/*/backgrounds/*),$(f):$(TARGET_COPY_OUT_PRODUCT)/etc/omarchy/$(patsubst $(OMARCHY_DIR)/themes/%,%,$(f)))
+    $(foreach f,$(wildcard $(OMARCHY_DIR)/themes/*/theme.toml) $(foreach e,$(OMARCHY_BG_EXTS),$(wildcard $(OMARCHY_DIR)/themes/*/backgrounds/*.$(e))),$(f):$(TARGET_COPY_OUT_PRODUCT)/etc/omarchy/$(patsubst $(OMARCHY_DIR)/themes/%,%,$(f)))
 
 # Boot animation (BootAnimation.cpp: PRODUCT_BOOTANIMATION_DIR = /product/media/)
 ifneq ($(wildcard $(OMARCHY_DIR)/bootanimation/bootanimation.zip),)
