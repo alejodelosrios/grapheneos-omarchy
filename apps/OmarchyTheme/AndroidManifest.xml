@@ -3,6 +3,11 @@
     package="org.omarchy.theme"
     android:sharedUserId="android.uid.system">
 
+    <!-- Only a system-signed/system-partition package's protected-broadcasts survive package scan
+         (ScanPackageUtils.java:935-937 strips them from everyone else); this priv-app installs to
+         /product, so it qualifies. Registered for real apps by InstallPackageHelper.java:700-705. -->
+    <protected-broadcast android:name="org.omarchy.theme.CHANGED" />
+
     <uses-permission android:name="android.permission.CHANGE_OVERLAY_PACKAGES" />
     <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS" />
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
