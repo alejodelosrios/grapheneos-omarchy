@@ -29,6 +29,10 @@ private const val KEY_FONT = "android.theme.customization.font"
 private const val SHAPE_OVERLAY_PACKAGE = "org.omarchy.overlay.shape"
 private const val FONT_OVERLAY_PACKAGE = "org.omarchy.overlay.font"
 
+// File-level lock: the tile/picker create a new ThemeSwitcher per tap, so this must be shared
+// across instances, not a per-instance field, to actually serialize concurrent taps.
+private val LOCK = Any()
+
 /**
  * Android port of `omarchy-theme-set <name>`. `set` does binder calls and file I/O (wallpaper
  * decode, prefs write): never call it from the main thread.
@@ -38,7 +42,7 @@ private const val FONT_OVERLAY_PACKAGE = "org.omarchy.overlay.font"
  *  1. OverlayManager.setEnabledExclusiveInCategory(palettePackage, UserHandle.CURRENT).
  *  2. Settings.Secure.THEME_CUSTOMIZATION_OVERLAY_PACKAGES <- JSON with the D1 keys. Same package
  *     in system_palette/accent_color/dynamic_color so SystemUI's Monet FRROs are skipped
- *     (ThemeOverlayController.java:822-829); shape/font are switched off by
+ *     (ThemeOverlayController.java:818-829); shape/font are switched off by
  *     ThemeOverlayApplier.java:209-225 unless named here (font key skipped entirely when
  *     theme.font == "system").
  *  3. UiModeManager.setNightMode(mode == "dark" ? MODE_NIGHT_YES : MODE_NIGHT_NO).
@@ -48,9 +52,16 @@ private const val FONT_OVERLAY_PACKAGE = "org.omarchy.overlay.font"
 class ThemeSwitcher(
     private val context: Context,
 ) {
-    fun set(themeId: String): Boolean {
-        val theme = ThemeCatalog.get(themeId) ?: return false
+    fun set(themeId: String): Boolean =
+        synchronized(LOCK) {
+            val theme = ThemeCatalog.get(themeId) ?: return@synchronized false
+            setLocked(themeId, theme)
+        }
 
+    private fun setLocked(
+        themeId: String,
+        theme: Theme,
+    ): Boolean {
         try {
             // 1. Exclusively enable this theme's palette overlay.
             context
@@ -121,13 +132,16 @@ class ThemeSwitcher(
         prefs().getString(PREF_CURRENT, null)
             ?: SystemProperties.get("ro.omarchy.theme.default", "tokyo-night")
 
-    fun next(): Theme? {
-        val themes = ThemeCatalog.load()
-        if (themes.isEmpty()) return null
-        val index = themes.indexOfFirst { it.id == current() }
-        val nextTheme = themes[(index + 1).mod(themes.size)]
-        return if (set(nextTheme.id)) nextTheme else null
-    }
+    fun next(): Theme? =
+        synchronized(LOCK) {
+            // next() calls set(), which re-acquires LOCK: the JVM intrinsic lock is reentrant
+            // for the same thread, so this does not deadlock.
+            val themes = ThemeCatalog.load()
+            if (themes.isEmpty()) return@synchronized null
+            val index = themes.indexOfFirst { it.id == current() }
+            val nextTheme = themes[(index + 1).mod(themes.size)]
+            if (set(nextTheme.id)) nextTheme else null
+        }
 
     fun appliedPalette(): String? {
         val raw =
