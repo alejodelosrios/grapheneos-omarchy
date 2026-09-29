@@ -1,7 +1,10 @@
 """Tests del issue #4 (design-4 §Cómo se verifica cada criterio / §Valores propuestos).
 
 C4 es el único criterio verificable sin host de build: el overlay framework NO contiene
-`rounded_corner_radius` (radio físico de la pantalla, `docs/research.md:181,207`), y los
+`rounded_corner_radius` (fuera del overlay por #4: es geometría de las esquinas del display —
+rama 17 `core/res/res/values/dimens.xml:115-116`,
+`<!-- Default radius of the software rounded corners. -->`, valor stock `0dp`; evidencia
+verificada por red en `.swarm/design/design-4-framework-overlay.md` §Evidencia de red), y los
 diálogos quedan en los valores aprobados del diseño (12dp / 16dp). C1–C3 exigen build o
 dispositivo y viven en `## No verificado sin host de build` del PR.
 """
@@ -24,6 +27,7 @@ def test_c4_sin_radios_fisicos_de_pantalla():
 
     `rounded_corner_radius` es la geometría de las esquinas del display (el valor real lo pone
     el overlay del dispositivo): deformarlo rompe el recorte de la pantalla.
+    Cita: .swarm/design/design-4-framework-overlay.md §Evidencia de red (rama 17 core/res/res/values/dimens.xml:115-116).
     """
     text = CONFIG.read_text(encoding="utf-8")
     assert "rounded_corner_radius" not in text, (
