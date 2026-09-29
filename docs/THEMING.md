@@ -80,23 +80,166 @@ val scheme = if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(
 
 ### Nivel 1 — paleta Omarchy exacta (ContentProvider)
 
+#### URIs
+
+| URI | Descripción |
+|---|---|
+| `content://org.omarchy.theme/current` | Una fila: el tema actual (`apps/OmarchyTheme/src/org/omarchy/theme/ThemeContract.kt:56`) |
+| `content://org.omarchy.theme/themes` | Una fila por cada tema instalado (`apps/OmarchyTheme/src/org/omarchy/theme/ThemeContract.kt:59`) |
+
+#### Columnas
+
+El provider devuelve exactamente estas 28 columnas en este orden (`apps/OmarchyTheme/src/org/omarchy/theme/ThemeContract.kt:20-50`):
+
+| Columna | Significado |
+|---|---|
+| `id` | Identificador del tema (p.ej. `tokyo-night`); debe coincidir con `^[a-z0-9-]+$` |
+| `name` | Nombre legible (p.ej. `Tokyo Night`) |
+| `mode` | `dark` o `light` |
+| `accent` | Color hex `#rrggbb` (rol AOSP `system_accent1`) |
+| `selection` | Color hex `#rrggbb` |
+| `muted` | Color hex `#rrggbb` |
+| `background` | Color hex `#rrggbb` (rol AOSP `system_neutral1`) |
+| `dark_background` | Color hex `#rrggbb` |
+| `darker_background` | Color hex `#rrggbb` |
+| `lighter_background` | Color hex `#rrggbb` (rol AOSP `system_neutral2`) |
+| `foreground` | Color hex `#rrggbb` |
+| `dark_foreground` | Color hex `#rrggbb` |
+| `light_foreground` | Color hex `#rrggbb` |
+| `bright_foreground` | Color hex `#rrggbb` |
+| `red` | Color hex `#rrggbb` |
+| `yellow` | Color hex `#rrggbb` |
+| `orange` | Color hex `#rrggbb` |
+| `green` | Color hex `#rrggbb` |
+| `cyan` | Color hex `#rrggbb` (rol AOSP `system_accent3`) |
+| `blue` | Color hex `#rrggbb` |
+| `magenta` | Color hex `#rrggbb` (rol AOSP `system_accent2`) |
+| `brown` | Color hex `#rrggbb` |
+| `bright_red` | Color hex `#rrggbb` |
+| `bright_yellow` | Color hex `#rrggbb` |
+| `bright_green` | Color hex `#rrggbb` |
+| `bright_cyan` | Color hex `#rrggbb` |
+| `bright_blue` | Color hex `#rrggbb` |
+| `bright_magenta` | Color hex `#rrggbb` |
+
+**Nota:** la tabla completa de mapeísmo roles AOSP ↔ theme.toml está en `docs/THEMING.md:22-28`.
+
+#### Comportamiento
+
+- `query(uri, projection, null, null, null)`: devuelve un `MatrixCursor` con `COLUMNS`; se respeta `projection` si se proporciona
+- `selection` y `sortOrder` se ignoran
+- Permisos: ninguno (provider es permission-less, `exported="true"` sin `writePermission`)
+- Sin provider (AOSP stock): `query` devuelve `null`; `registerContentObserver` lanza `SecurityException`
+- Modificaciones: `insert`, `update`, `delete` devuelven `null`/`0` sin efecto
+
+#### Cambios de tema: `protected-broadcast` y `ContentObserver`
+
+`org.omarchy.theme.CHANGED` es un `protected-broadcast` (`apps/OmarchyTheme/AndroidManifest.xml:9`) que solo la priv-app puede enviar. **Importante:** solo es un aviso; la fuente de verdad es el provider. Lee cambios usando un `ContentObserver`:
+
 ```kotlin
-val c = contentResolver.query(Uri.parse("content://org.omarchy.theme/current"), null, null, null, null)
-c?.use { if (it.moveToFirst()) {
-    val accent = it.getString(it.getColumnIndexOrThrow("accent"))        // "#7aa2f7"
-    val mode   = it.getString(it.getColumnIndexOrThrow("mode"))          // "dark"
-    val name   = it.getString(it.getColumnIndexOrThrow("name"))          // "Tokyo Night"
-}}
-registerReceiver(receiver, IntentFilter("org.omarchy.theme.CHANGED"), RECEIVER_EXPORTED)
+val observer = object : ContentObserver(null) {
+    override fun onChange(selfChange: Boolean) {
+        // Re-leer el tema con current() en Dispatchers.IO
+    }
+}
+try {
+    contentResolver.registerContentObserver(OmarchyThemeContract.CURRENT, false, observer)
+} catch (e: SecurityException) {
+    // Sin provider (AOSP stock): usar fallback Nivel 0
+}
+// Al terminar (si register no lanzó):
+contentResolver.unregisterContentObserver(observer)
 ```
 
-Columnas = todas las claves de `theme.toml` + `id`, `name`, `mode`. Sin permisos. Si el provider
-no existe (no es OmarchyOS) `query` devuelve `null`: caer al nivel 0.
+Si usas la librería (`apps/sdk/omarchy-theme-android/`), `OmarchyTheme.flow(ctx)` ya implementa esta excepción (ver KDoc: `apps/sdk/omarchy-theme-android/src/main/kotlin/org/omarchy/theme/sdk/OmarchyTheme.kt:90-95`).
 
-### Nivel 2 — librería `omarchy-theme-android` (issue M2)
+#### Garantías de estabilidad
 
-`OmarchyTheme.current(ctx): OmarchyTheme?`, `OmarchyTheme.flow(ctx)`, y para Compose
-`omarchyColorScheme(ctx)` que devuelve la paleta exacta o `dynamicColorScheme` como fallback.
+El contrato solo crece; nunca cambia de nombre ni se remueve una columna. `[android]` y `backgrounds` (opcionales en `theme.toml`) no se exponen en el provider.
+
+#### `<queries>` obligatorio en el cliente (API 30+)
+
+`AndroidManifest.xml` de tu app debe declarar:
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries>
+        <provider android:authorities="org.omarchy.theme" />
+    </queries>
+</manifest>
+```
+
+Esto permite resolver el ContentProvider aunque viva en otro paquete (`apps/sdk/omarchy-theme-android/src/main/AndroidManifest.xml:4-5`).
+
+### Nivel 2 — librería `apps/sdk/` (omarchy-theme-android + omarchy-theme-compose)
+
+#### API principal
+
+```kotlin
+// Lectura síncrona (ejecutar en IO, devuelve null si no hay provider)
+val theme: OmarchyTheme? = OmarchyTheme.current(ctx)
+
+// Flow reactivo (emite el tema actual, luego en cada cambio)
+val flow: Flow<OmarchyTheme?> = OmarchyTheme.flow(ctx)
+```
+
+(`apps/sdk/omarchy-theme-android/src/main/kotlin/org/omarchy/theme/sdk/OmarchyTheme.kt:65-106`)
+
+#### Compose
+
+```kotlin
+@Composable
+fun MyScreen() {
+    val scheme = omarchyColorScheme()  // Usa flow(ctx) internamente, devuelve ColorScheme
+    // ... aplica scheme a Scaffold/Surface/etc
+}
+```
+
+(`apps/sdk/omarchy-theme-compose/src/main/kotlin/org/omarchy/theme/sdk/compose/OmarchyColorScheme.kt:76`)
+
+#### Mapeo de colores a Material 3 (D7)
+
+Con tema presente, `omarchyColorScheme()` parte de `darkColorScheme()` o `lightColorScheme()` (según `theme.mode`) y aplica:
+
+| theme.toml | Material 3 ColorScheme |
+|---|---|
+| `accent` | `primary` |
+| `background` | `onPrimary`, `background`, `surface`, `onError` |
+| `selection` | `primaryContainer` |
+| `foreground` | `onPrimaryContainer`, `onBackground`, `onSurface` |
+| `magenta` | `secondary` |
+| `cyan` | `tertiary` |
+| `lighter_background` | `surfaceVariant` |
+| `light_foreground` | `onSurfaceVariant` |
+| `muted` | `outline` |
+| `red` | `error` |
+
+(`apps/sdk/omarchy-theme-compose/src/main/kotlin/org/omarchy/theme/sdk/compose/OmarchyColorScheme.kt:51-67`)
+
+Sin tema o sin provider, `omarchyColorScheme()` devuelve `dynamicDarkColorScheme(ctx)` o `dynamicLightColorScheme(ctx)` según parámetro `dark`.
+
+#### Compilación
+
+```bash
+gradle -p apps/sdk test :sample:assembleDebug
+```
+
+- Requiere: Gradle 9.8.0, JDK 21, sin wrapper (`gradle` instalado directamente)
+- Versiones en `apps/sdk/gradle/libs.versions.toml` (compatibilidad según las release notes de AGP 9.4; ver comentario en `libs.versions.toml:2-7`)
+- Sample compilado: `apps/sdk/sample/build/outputs/apk/debug/sample-debug.apk` (package `org.omarchy.sample`, `apps/sdk/sample/src/main/kotlin/org/omarchy/sample/MainActivity.kt`)
+
+#### Publicación en Maven
+
+Pendiente (M4).
+
+#### Test
+
+`gradle -p apps/sdk test` ejecuta Robolectric contra:
+- `apps/sdk/omarchy-theme-android/src/test/kotlin/org/omarchy/theme/sdk/OmarchyThemeTest.kt`: parse de fila válida, id inválido, mode inválido, cursor vacío/null; `current()` sin provider devuelve null; `flow()` sin provider emite null sin lanzar
+
+#### No verificado sin host de build
+
+Los criterios 1–3 del issue #10 (query devuelve fila correcta en `current`, sample actualiza sin reiniciarse, emulador sin provider usa fallback) requieren Pixel/emulador y se verificarán en el PR de integración.
 
 ## Compat (recursos overlayados, verificados en GrapheneOS 17)
 

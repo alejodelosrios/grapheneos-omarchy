@@ -124,6 +124,9 @@ class ThemeSwitcher(
                 .putExtra(ThemeContract.EXTRA_MODE, theme.mode),
         )
 
+        // 5b. Wake up ContentResolver observers (the lib's flow(ctx), not a broadcast receiver).
+        context.contentResolver.notifyChange(ThemeContract.CURRENT, null)
+
         prefs().edit().putString(PREF_CURRENT, themeId).apply()
         return true
     }
