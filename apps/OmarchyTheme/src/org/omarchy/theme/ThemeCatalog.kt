@@ -86,7 +86,7 @@ object ThemeCatalog {
                 arrayMatch != null -> {
                     val key = qualify(table, arrayMatch.groupValues[1])
                     val items = ARRAY_ITEM.findAll(arrayMatch.groupValues[2]).map { it.groupValues[1] }.toList()
-                    if (key == "backgrounds") backgrounds = items
+                    if (key == "android.backgrounds") backgrounds = items
                 }
 
                 else -> {
