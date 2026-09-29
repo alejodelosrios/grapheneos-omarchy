@@ -35,10 +35,31 @@ dynamic color cambian con el tema sin conocer Omarchy**.
 
 1. `OverlayManager.setEnabledExclusiveInCategory("org.omarchy.palette.<id>", CURRENT)`
 2. `Settings.Secure.theme_customization_overlay_packages` ←
-   `{"android.theme.customization.system_palette":"org.omarchy.palette.<id>","android.theme.customization.color_source":"preset"}`
+   ```json
+   {
+     "android.theme.customization.system_palette":      "org.omarchy.palette.<id>",
+     "android.theme.customization.accent_color":        "org.omarchy.palette.<id>",
+     "android.theme.customization.dynamic_color":       "org.omarchy.palette.<id>",
+     "android.theme.customization.color_source":        "preset",
+     "android.theme.customization.theme_style":         "<theme.toml [android].theme_style>",
+     "android.theme.customization.adaptive_icon_shape": "org.omarchy.overlay.shape",
+     "android.theme.customization.font":                "org.omarchy.overlay.font"
+   }
+   ```
+   (la clave `font` se omite si `[android].font == "system"`; ver `ThemeSwitcher.kt:76-78`)
 3. `UiModeManager.setNightMode(mode == "dark" ? YES : NO)`
-4. `WallpaperManager.setStream(backgrounds[0])`
+4. `WallpaperManager.setStream(backgrounds[0])` (se salta si `theme.toml` omite `backgrounds` o está vacío)
 5. `sendBroadcast(org.omarchy.theme.CHANGED)`
+
+**Por qué shape y font son mutables:** `ThemeOverlayApplier.java:209-225` desactiva todo overlay en las categorías de
+`THEME_CATEGORIES` (`:118-128`) si su paquete no aparece en el JSON. Sin estas claves, SystemUI apaga
+`org.omarchy.overlay.shape` y `org.omarchy.overlay.font` (mutables, `overlay/config/config.xml`). El mismo paquete en
+`accent_color` y `dynamic_color` (en lugar de usar los FRRO Monet por defecto) evita que `ThemeOverlayController.java:822-829`
+habilite los FRROs dinámicos, manteniendo la paleta exacta del tema; `color_source="preset"` obliga a que no se reescriba
+el JSON al cambiar wallpaper (`ThemeOverlayController.java:366-378`).
+
+**Persistencia:** `BootReceiver` reaplica el tema en `BOOT_COMPLETED` si el JSON guardado no coincide con la paleta actual
+(`BootReceiver.kt:26-27`). **No verificado sin host de build.**
 
 Entradas de usuario: app "Theme" en el launcher (lista con preview, como `omarchy-theme-switcher`)
 y tile de Quick Settings "Theme" (tap = siguiente tema, long-press = picker). Tile "Next wallpaper"
