@@ -16,12 +16,19 @@ data class OmarchyTheme(
     val id: String,
     val name: String,
     val mode: String,
+    /**
+     * Color key to 6-digit `#rrggbb` hex value. Only keys whose value matched
+     * [OmarchyThemeContract.HEX_PATTERN] in [parse] are present; a malformed value (bad length,
+     * missing `#`, non-hex digits) is dropped instead of being kept as-is, so callers never
+     * have to re-validate before handing a value to a color parser (e.g. Compose's).
+     */
     val colors: Map<String, String>,
 ) {
     val isDark: Boolean get() = mode == "dark"
 
     companion object {
         private val ID_REGEX = Regex(OmarchyThemeContract.ID_PATTERN)
+        private val HEX_REGEX = Regex(OmarchyThemeContract.HEX_PATTERN)
         private val COLOR_COLUMNS =
             OmarchyThemeContract.COLUMNS.filter {
                 it != "id" && it != "name" && it != "mode"
@@ -30,8 +37,12 @@ data class OmarchyTheme(
         /**
          * Parses the first row of [cursor] into an [OmarchyTheme]. `id`, `name` and `mode` are
          * required (`id` must match [OmarchyThemeContract.ID_PATTERN], `mode` must be "dark" or
-         * "light"); colors are whichever color columns are present and non-null. Returns null
-         * for a null/empty cursor or if anything required is missing or invalid.
+         * "light"); colors are whichever color columns are present, non-null and match
+         * [OmarchyThemeContract.HEX_PATTERN] — a present-but-malformed color value (e.g. from an
+         * authority squatting `org.omarchy.theme` on stock AOSP) is silently dropped rather than
+         * invalidating the whole theme, since a bad hex string reaching a color parser (e.g.
+         * Compose's) downstream would crash the caller. Returns null for a null/empty cursor or
+         * if anything required (`id`/`name`/`mode`) is missing or invalid.
          */
         fun parse(cursor: Cursor?): OmarchyTheme? {
             if (cursor == null || !cursor.moveToFirst()) return null
@@ -51,6 +62,7 @@ data class OmarchyTheme(
                 val index = cursor.getColumnIndex(column)
                 if (index < 0) continue
                 val value = cursor.getString(index) ?: continue
+                if (!HEX_REGEX.matches(value)) continue
                 colors[column] = value
             }
 
