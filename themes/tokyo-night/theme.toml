@@ -36,4 +36,5 @@ bright_magenta = "#bb9af7"
 [android]
 palette_package = "org.omarchy.palette.tokyonight"
 theme_style = "TONAL_SPOT"   # fallback seed mode if the palette RRO is unavailable
+font = "jetbrains-mono-nerd"
 backgrounds = ["backgrounds/1-pagoda.jpg"]
