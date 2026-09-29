@@ -58,6 +58,30 @@ class OmarchyThemeTest {
     }
 
     @Test
+    fun `parse drops malformed hex colors but keeps the rest`() {
+        val cursor = MatrixCursor(OmarchyThemeContract.COLUMNS.toTypedArray())
+        cursor.addRow(
+            OmarchyThemeContract.COLUMNS.map { column ->
+                when (column) {
+                    "id" -> "tokyo-night"
+                    "name" -> "Tokyo Night"
+                    "mode" -> "dark"
+                    "accent" -> "#fff"
+                    "red" -> "#gg0000"
+                    else -> "#000000"
+                }
+            },
+        )
+
+        val theme = OmarchyTheme.parse(cursor)
+
+        assertNull(theme?.colors?.get("accent"))
+        assertNull(theme?.colors?.get("red"))
+        assertEquals("#000000", theme?.colors?.get("green"))
+        assertEquals(OmarchyThemeContract.COLUMNS.size - 3 - 2, theme?.colors?.size)
+    }
+
+    @Test
     fun `parse empty cursor returns null`() {
         val cursor = MatrixCursor(OmarchyThemeContract.COLUMNS.toTypedArray())
         assertNull(OmarchyTheme.parse(cursor))
