@@ -11,8 +11,8 @@
 #      -> themes/<id>/theme.toml: claves upstream idénticas (mode/colores, verbatim) + cabecera
 #         `name` (preservada de upstream si la trae; si no, derivada del id como en tokyo-night
 #         -> "Tokyo Night") + tabla [android] con `palette_package` derivado y
-#         `theme_style="TONAL_SPOT"`. SIN clave `font` (#6) ni `backgrounds`/fondos (#7):
-#         si upstream las trajera, se eliminan aquí.
+#         `theme_style="TONAL_SPOT"` y `font="jetbrains-mono-nerd"` (#6). SIN `backgrounds`/fondos
+#         (#7): si upstream trajera `font` o `backgrounds`, se eliminan aquí (el `font` va fijo).
 #   2. Scaffold del RRO espejo de Tokyo Night (mismos ficheros, solo cambian módulo/paquete):
 #      overlay/themes/<id>/OmarchyPalette<Id>/{Android.bp,AndroidManifest.xml,res/values/colors.xml}
 #      con colors.xml generado por tools/gen-palette.py (194 tokens, cobertura 100%).
@@ -85,7 +85,7 @@ for line in open(raw):
     if m:
         if m.group(1) == "name":
             upstream_name = re.sub(r'^name\s*=\s*', "", line.strip()).strip().strip('"')
-        continue  # font (#6) y backgrounds/fondos (#7) quedan fuera
+        continue  # font de upstream (#6: se inyecta el nuestro) y backgrounds/fondos (#7) quedan fuera
     keep.append(line)
 body = "".join(keep).rstrip() + "\n"
 name = upstream_name or title  # name/mode "preservados de upstream"; name se deriva del id si no viene
@@ -97,6 +97,7 @@ text = (
     f"[android]\n"
     f'palette_package = "{package}"\n'
     f'theme_style = "TONAL_SPOT"   # fallback seed mode if the palette RRO is unavailable\n'
+    f'font = "jetbrains-mono-nerd"\n'
 )
 open(out, "w").write(text)
 PY
