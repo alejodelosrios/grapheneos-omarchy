@@ -34,8 +34,8 @@ class ThemePickerActivity : Activity() {
         listView =
             ListView(this).apply {
                 choiceMode = AbsListView.CHOICE_MODE_SINGLE
-                setAdapter(adapter)
             }
+        listView.adapter = adapter
         applyButton =
             Button(this).apply {
                 text = "Apply"
