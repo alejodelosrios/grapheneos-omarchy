@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.omarchy.palette.nord">
+    <application android:hasCode="false" />
+    <!-- Legacy "full package" system palette: ThemeOverlayController keeps a package name in
+         this category when it is not a hex colour (ThemeOverlayController.java:786-796) and
+         ThemeOverlayApplier enables it exclusively -> exact Omarchy colours, Monet FRROs skipped. -->
+    <overlay android:targetPackage="android"
+        android:category="android.theme.customization.system_palette"
+        android:priority="10" />
+</manifest>

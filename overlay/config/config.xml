@@ -8,5 +8,10 @@
     <overlay package="org.omarchy.overlay.systemui"  mutable="false" enabled="true" />
     <overlay package="org.omarchy.overlay.shape"     mutable="true"  enabled="true" />
     <overlay package="org.omarchy.overlay.font"      mutable="true"  enabled="true" />
+    <overlay package="org.omarchy.palette.catppuccin" mutable="true" enabled="false" />
+    <overlay package="org.omarchy.palette.everforest" mutable="true" enabled="false" />
+    <overlay package="org.omarchy.palette.gruvbox" mutable="true" enabled="false" />
+    <overlay package="org.omarchy.palette.kanagawa" mutable="true" enabled="false" />
+    <overlay package="org.omarchy.palette.nord" mutable="true" enabled="false" />
     <overlay package="org.omarchy.palette.tokyonight" mutable="true" enabled="true" />
 </config>
