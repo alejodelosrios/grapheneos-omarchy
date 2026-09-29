@@ -51,10 +51,20 @@ class OmarchyColorSchemeContrastTest {
                     val ratio = contrastRatio(picked!!, bg)
                     assertTrue(
                         "${dir.name}: $label = $picked on $bgKey ($bg) is $ratio, want >= 4.5",
-                        ratio >= 4.5,
+                        ratio != null && ratio >= 4.5,
                     )
                 }
             }
         }
+    }
+
+    /** Audit-10 R2-1: malformed hex (short `#fff`, non-hex digits) must return null, not throw. */
+    @Test
+    fun pickTextReturnsNullInsteadOfThrowingOnMalformedHex() {
+        val shortHexPreferred = mapOf("preferred" to "#fff", "bg" to "#111111")
+        assertTrue(pickText(shortHexPreferred, "preferred", listOf("bg")) == null)
+
+        val invalidDigitsBackground = mapOf("preferred" to "#ffffff", "bg" to "#gg0000")
+        assertTrue(pickText(invalidDigitsBackground, "preferred", listOf("bg")) == null)
     }
 }
