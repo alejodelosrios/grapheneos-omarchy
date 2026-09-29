@@ -3,6 +3,7 @@ out/
 *.img
 *.zip
 !bootanimation/README.md
+!bootanimation/bootanimation.zip
 # Signing keys and releases — NEVER commit
 keys/
 releases/
