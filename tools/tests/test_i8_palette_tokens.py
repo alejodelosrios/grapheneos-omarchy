@@ -4,7 +4,8 @@ Criterios verificables SIN host de build ni Pixel:
   1. self-check de tools/gen-palette.py + wc -l tools/system-colors.txt == 194 (D2).
   2. Nombres de cada overlay/themes/*/*/res/values/colors.xml == tools/system-colors.txt
      (y, más fuerte, identidad byte a byte con el generador = gate `palette`).
-  3. tools/check-contrast.py → todos los pares on_surface/surface >= 4.5 (dark y light).
+   3. tools/check-contrast.py → todos los pares texto/fondo medidos >= 4.5 (dark y light;
+      PAIRS ampliado en R2/H2 por audit-8 H2 más allá del on_surface/surface del diseño).
 
 Criterios 4 (settings put + captura) y 5 (m OmarchyPalette*) exigen host de build / Pixel:
 NO verificables aquí (al PR, `## No verificado sin host de build`).
@@ -151,17 +152,26 @@ def test_criterio2_cobertura_100_por_tema():
 # --- Criterio 3 ---------------------------------------------------------------
 
 def test_criterio3_contraste_min_4_5():
-    """tools/check-contrast.py → exit 0 y 12 pares OK (6 temas x dark/light), ninguno FALLA."""
+    """tools/check-contrast.py → exit 0 y todos los pares OK, ninguno FALLA.
+
+    Actualizado en R2/H2 (audit-8): PAIRS ampliado a los pares Material 3 que la UI A14+
+    usa (on_surface_variant/{surface,surface_variant} y on_X/on_X_container sobre su fondo
+    homónimo, dark y light) — el recuento se deriva del módulo, no se fija a mano.
+    """
     tomls = theme_tomls()
     assert len(tomls) == 6, f"esperaba 6 temas, hay {len(tomls)}"
+    spec = importlib.util.spec_from_file_location("check_contrast_i8", CHECK)
+    cc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cc)
     out = subprocess.run(
         [sys.executable, str(CHECK), *[str(t) for t in tomls]],
         capture_output=True, cwd=REPO, text=True,
     )
     assert out.returncode == 0, f"check-contrast falló:\n{out.stdout}{out.stderr}"
     assert "FALLA" not in out.stdout, f"par por debajo de 4.5:\n{out.stdout}"
-    assert out.stdout.count("OK (>= 4.5)") == 2 * len(tomls), (
-        f"esperaba {2 * len(tomls)} pares OK:\n{out.stdout}"
+    n_expected = len(cc.PAIRS) * len(tomls)
+    assert out.stdout.count("OK (>= 4.5)") == n_expected, (
+        f"esperaba {n_expected} pares OK:\n{out.stdout}"
     )
 
 

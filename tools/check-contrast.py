@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""WCAG 2.x contrast check for palette themes (design-8, criterio 3).
+"""WCAG 2.x contrast check for palette themes (design-8 criterio 3 + audit-8 H2).
 
-For every themes/<id>/theme.toml the pairs (system_on_surface_*, system_surface_*) must have a
-WCAG 2.x contrast ratio >= 4.5 in BOTH modes (dark and light). Values are resolved through the
-same token mapping as tools/gen-palette.py (imported: single source of truth, no second table).
+For every themes/<id>/theme.toml each pair of PAIRS (Material 3 text/background tokens, dark
+and light) must have a WCAG 2.x contrast ratio >= 4.5. Values are resolved through the same
+token mapping as tools/gen-palette.py (imported: single source of truth, no second table).
+
+Pairs (R2/H2): on_surface/surface, on_surface_variant/{surface,surface_variant} and
+on_{primary,secondary,tertiary,error} y *_container sobre su fondo homónimo.
 
 Exit != 0 if any pair falls below 4.5.
 
@@ -13,10 +16,20 @@ import importlib.util, sys, tomllib
 from pathlib import Path
 
 THRESHOLD = 4.5
+FAMILIES = ("primary", "secondary", "tertiary", "error")
 PAIRS = [
     ("dark", "system_on_surface_dark", "system_surface_dark"),
     ("light", "system_on_surface_light", "system_surface_light"),
+    ("dark", "system_on_surface_variant_dark", "system_surface_dark"),
+    ("light", "system_on_surface_variant_light", "system_surface_light"),
+    ("dark", "system_on_surface_variant_dark", "system_surface_variant_dark"),
+    ("light", "system_on_surface_variant_light", "system_surface_variant_light"),
 ]
+for _fam in FAMILIES:
+    for _mode in ("dark", "light"):
+        PAIRS.append((_mode, f"system_on_{_fam}_{_mode}", f"system_{_fam}_{_mode}"))
+        PAIRS.append((_mode, f"system_on_{_fam}_container_{_mode}",
+                      f"system_{_fam}_container_{_mode}"))
 
 def load_gen():
     spec = importlib.util.spec_from_file_location(
