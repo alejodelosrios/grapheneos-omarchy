@@ -192,6 +192,11 @@ def test_i26_sabotaje_preferida_on_primary_container_dark_da_rojo():
     trabajo). Se usa en su lugar "bright_foreground", que en tokyo-night SÍ pasa 4.5 y difiere
     de "foreground": demuestra que la tabla importa y que el byte-a-byte de arriba lo detecta.
 
+    N1 (audit-26, ronda 3): no basta con que el valor en memoria cambie — hay que probar que
+    el `colors.xml` que saldría del generador sabotaged realmente difiere del versionado
+    (`to_xml`, mismo formato que emite `tools/gen-palette.py` por stdout), que es lo que el
+    test byte-a-byte de arriba compara de verdad.
+
     Monkeypatch en memoria sobre un módulo recién cargado (gp.ADAPTIVE_TOKENS); nunca toca
     tools/gen-palette.py en disco.
     """
@@ -204,18 +209,24 @@ def test_i26_sabotaje_preferida_on_primary_container_dark_da_rojo():
     changed = []
     for theme_id, toml in tomls.items():
         theme = tomllib.loads(toml.read_text())
-        base = gp.palette(theme)[name]
+        base_xml = gp.to_xml(gp.palette(theme)).encode()
+        versioned_xml = colors_xml_for(theme_id).read_bytes()
+        assert base_xml == versioned_xml, (
+            f"{theme_id}: sin sabotear, el generador ya difiere del colors.xml versionado "
+            "(el fixture de este test no sirve de línea base)"
+        )
 
         gp.ADAPTIVE_TOKENS[name] = ("bright_foreground", bg_token)
-        sabotaged = gp.palette(theme)[name]
+        sabotaged_xml = gp.to_xml(gp.palette(theme)).encode()
         gp.ADAPTIVE_TOKENS[name] = ("foreground", bg_token)  # restaura la preferida real
 
-        if sabotaged != base:
+        if sabotaged_xml != versioned_xml:
             changed.append(theme_id)
 
     assert changed, (
-        "sabotaje sin efecto esperado: cambiar la preferida debía mover "
-        f"{name} en al menos un tema oscuro"
+        "sabotaje sin efecto esperado: cambiar la preferida debía hacer que el colors.xml "
+        f"regenerado difiriera del versionado en al menos un tema oscuro (N1: byte a byte, "
+        "no solo en memoria)"
     )
 
 
@@ -233,41 +244,52 @@ def test_i26_c4_nombres_colors_xml_x9_en_orden():
         )
 
 
-# --- H1 (ronda 2) · on_<rol>_fixed mide contra *_fixed Y *_fixed_dim ----------
+# --- H1/H2 (rondas 2-3) · on_<rol>_fixed[_variant] mide contra *_fixed Y *_fixed_dim --
 
 FIXED_ROLES = ("primary", "secondary", "tertiary")
+# H1 (ronda 2): on_<rol>_fixed. H2 (ronda 3, audit-26 rechazo, fix b24e1e4/41f709f):
+# on_<rol>_fixed_variant tiene los MISMOS dos fondos (ColorSpec2021.java:763-771 —
+# setBackground(<rol>FixedDim()) + setSecondBackground(<rol>Fixed()) para ambos, _fixed y
+# _fixed_variant); solo difiere el orden en ADAPTIVE_TOKENS (no afecta el resultado: pick_text
+# exige "ok" contra TODOS los fondos de la tupla). Un guardián parametrizado por sufijo cubre
+# las dos filas sin duplicar el cuerpo del test.
+FIXED_SUFFIXES = ("_fixed", "_fixed_variant")
 
 
 def test_i26_h1_on_fixed_mide_contra_fixed_y_fixed_dim():
-    """Guardián de audit-26 H1: para cada tema (x9, colors.xml versionado) y cada rol
-    primary/secondary/tertiary, system_on_<rol>_fixed contrasta >= 4.5 contra system_<rol>_fixed
-    Y contra system_<rol>_fixed_dim (ColorSpec2021.java:763-771: el texto fixed se lee sobre
-    AMBOS, no solo sobre su homónimo).
+    """Guardián de audit-26 H1/H2: para cada tema (x9, colors.xml versionado), cada rol
+    primary/secondary/tertiary y cada sufijo _fixed/_fixed_variant, system_on_<rol><sufijo>
+    contrasta >= 4.5 contra system_<rol>_fixed Y contra system_<rol>_fixed_dim
+    (ColorSpec2021.java:763-771: el texto fixed se lee sobre AMBOS, no solo sobre su homónimo,
+    y la regla es la misma para la variante «dim» del texto).
     """
     gp = load_gen()
     for toml in theme_tomls():
         theme_id = toml.parent.name
         colors = xml_colors(colors_xml_for(theme_id))
         for rol in FIXED_ROLES:
-            onf = colors[f"system_on_{rol}_fixed"]
-            for bg_name in (f"system_{rol}_fixed", f"system_{rol}_fixed_dim"):
-                ratio = gp.contrast(onf, colors[bg_name])
-                assert ratio >= 4.5, (
-                    f"{theme_id}: system_on_{rol}_fixed={onf} vs {bg_name}={colors[bg_name]}: "
-                    f"{ratio:.2f} < 4.5 (H1)"
-                )
+            for suffix in FIXED_SUFFIXES:
+                onf = colors[f"system_on_{rol}{suffix}"]
+                for bg_name in (f"system_{rol}_fixed", f"system_{rol}_fixed_dim"):
+                    ratio = gp.contrast(onf, colors[bg_name])
+                    assert ratio >= 4.5, (
+                        f"{theme_id}: system_on_{rol}{suffix}={onf} vs {bg_name}={colors[bg_name]}: "
+                        f"{ratio:.2f} < 4.5 (H1/H2)"
+                    )
 
 
 def test_i26_h1_backgrounds_for_incluye_fixed_dim():
     cc = load_check()
     for rol in FIXED_ROLES:
-        bgs = cc.backgrounds_for(f"system_on_{rol}_fixed")
-        assert f"system_{rol}_fixed_dim" in bgs, (
-            f"check-contrast.backgrounds_for(system_on_{rol}_fixed) perdió system_{rol}_fixed_dim: {bgs}"
-        )
-        assert f"system_{rol}_fixed" in bgs, (
-            f"check-contrast.backgrounds_for(system_on_{rol}_fixed) perdió su homónimo system_{rol}_fixed: {bgs}"
-        )
+        for suffix in FIXED_SUFFIXES:
+            name = f"system_on_{rol}{suffix}"
+            bgs = cc.backgrounds_for(name)
+            assert f"system_{rol}_fixed_dim" in bgs, (
+                f"check-contrast.backgrounds_for({name}) perdió system_{rol}_fixed_dim: {bgs}"
+            )
+            assert f"system_{rol}_fixed" in bgs, (
+                f"check-contrast.backgrounds_for({name}) perdió system_{rol}_fixed: {bgs}"
+            )
 
 
 def test_i26_h1_sabotaje_adaptive_tokens_sin_fixed_dim_da_rojo():
@@ -298,12 +320,36 @@ def test_i26_h1_sabotaje_adaptive_tokens_sin_fixed_dim_da_rojo():
     )
 
 
+def test_i26_h2_sabotaje_adaptive_tokens_fixed_variant_sin_fixed_da_rojo():
+    """H2: quitar system_<rol>_fixed (el homónimo, no el _dim) de la tupla-fondo de
+    on_<rol>_fixed_variant en ADAPTIVE_TOKENS deja a pick_text sin ese segundo fondo que
+    cumplir -> el test de coincidencia de 20 filas (más abajo) debe notar la divergencia.
+
+    Monkeypatch en memoria sobre un módulo recién cargado; nunca toca tools/gen-palette.py.
+    """
+    gp = load_gen()
+    cc = load_check()
+    divergentes = []
+    for rol in FIXED_ROLES:
+        name = f"system_on_{rol}_fixed_variant"
+        preferred, bg_tokens = gp.ADAPTIVE_TOKENS[name]
+        assert f"system_{rol}_fixed" in bg_tokens, f"{name}: ya no tenía system_{rol}_fixed que quitar"
+        gp.ADAPTIVE_TOKENS[name] = (preferred, (f"system_{rol}_fixed_dim",))  # sabotaje: solo el dim
+        if list(gp.ADAPTIVE_TOKENS[name][1]) != cc.backgrounds_for(name):
+            divergentes.append(name)
+    assert divergentes == [f"system_on_{r}_fixed_variant" for r in FIXED_ROLES], (
+        f"sabotaje sin efecto esperado: las 3 filas _fixed_variant debían divergir de "
+        f"backgrounds_for, divergentes={divergentes}"
+    )
+
+
 def test_i26_h1_sabotaje_backgrounds_for_regla_vieja_pierde_el_par():
     """Si check-contrast.backgrounds_for volviera a la regla vieja (on_<rol>_fixed solo
-    empareja con su homónimo), el guardián basado en PAIRS perdería justo el par que detectó
-    H1 (on_<rol>_fixed vs <rol>_fixed_dim) para los 3 roles -> la regresión pasaría en
-    silencio. Se demuestra reconstruyendo los PAIRS derivados con la regla vieja monkeypatcheada
-    y comprobando que ese par desaparece.
+    empareja con su homónimo, y on_<rol>_fixed_variant solo con *_fixed_dim), el guardián
+    basado en PAIRS perdería justo los pares que detectaron H1 (on_<rol>_fixed vs
+    <rol>_fixed_dim) y H2 (on_<rol>_fixed_variant vs <rol>_fixed) para los 3 roles -> la
+    regresión pasaría en silencio. Se demuestra reconstruyendo los PAIRS derivados con la
+    regla vieja monkeypatcheada y comprobando que esos 6 pares desaparecen.
 
     Monkeypatch en memoria sobre un módulo recién cargado; nunca toca tools/check-contrast.py.
     """
@@ -311,6 +357,9 @@ def test_i26_h1_sabotaje_backgrounds_for_regla_vieja_pierde_el_par():
     original = cc.backgrounds_for
 
     def regla_vieja(name):
+        if name.startswith("system_on_") and name.endswith("_fixed_variant"):
+            base = name[len("system_on_"):-len("_fixed_variant")]
+            return ["system_" + base + "_fixed_dim"]
         if name.endswith("_fixed") and not name.endswith("_fixed_variant") and name.startswith("system_on_"):
             return [name.replace("system_on_", "system_")]
         return original(name)
@@ -319,15 +368,24 @@ def test_i26_h1_sabotaje_backgrounds_for_regla_vieja_pierde_el_par():
     cc.backgrounds_for = regla_vieja
     pairs_viejos = set(cc.derive_pairs(cc.NAMES))
 
-    perdidos = {
+    perdidos_h1 = {
         (fg, bg, kind) for (fg, bg, kind) in pairs_nuevos - pairs_viejos
         if fg.endswith("_fixed") and not fg.endswith("_fixed_variant") and bg.endswith("_fixed_dim")
     }
-    assert perdidos, (
-        "sabotaje sin efecto esperado: la regla vieja de backgrounds_for debía perder el par "
-        "on_<rol>_fixed vs <rol>_fixed_dim para los 3 roles"
+    perdidos_h2 = {
+        (fg, bg, kind) for (fg, bg, kind) in pairs_nuevos - pairs_viejos
+        if fg.endswith("_fixed_variant") and bg.endswith("_fixed") and not bg.endswith("_fixed_dim")
+    }
+    assert perdidos_h1, (
+        "sabotaje sin efecto esperado (H1): la regla vieja debía perder on_<rol>_fixed vs "
+        "<rol>_fixed_dim para los 3 roles"
     )
-    assert {p[0] for p in perdidos} == {f"system_on_{r}_fixed" for r in FIXED_ROLES}
+    assert perdidos_h2, (
+        "sabotaje sin efecto esperado (H2): la regla vieja debía perder on_<rol>_fixed_variant "
+        "vs <rol>_fixed para los 3 roles"
+    )
+    assert {p[0] for p in perdidos_h1} == {f"system_on_{r}_fixed" for r in FIXED_ROLES}
+    assert {p[0] for p in perdidos_h2} == {f"system_on_{r}_fixed_variant" for r in FIXED_ROLES}
 
 
 # --- ADAPTIVE_TOKENS == check-contrast.backgrounds_for (las 20 filas) --------
