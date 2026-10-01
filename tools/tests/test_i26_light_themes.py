@@ -15,14 +15,21 @@ Criterios verificables SIN host de build ni Pixel:
 Criterio C3 (diff vacío de los 6 oscuros contra origin/develop) y C7 (Pixel) no son de esta
 pieza: C3 es terreno del overlay-builder sobre overlay/themes/*, C7 exige build/dispositivo.
 
+Ronda 2 (audit-26 H1, fix en 02dccf5/2d95a92/57f421b): on_<rol>_fixed (primary/secondary/
+tertiary, sin _variant) tiene DOS fondos en M3 (ColorSpec2021.java:763-771) — <rol>_fixed y
+<rol>_fixed_dim —, no solo el homónimo. `ADAPTIVE_TOKENS` ahora es `name -> (preferida, tupla
+de tokens-fondo)` y `check-contrast.py:backgrounds_for` devuelve esa misma tupla para
+on_X_fixed. Guardián + sabotajes de esta regresión en la sección «H1» más abajo.
+
 Compatible con pytest y con tools/tests/run_tests.py (funciones `test_*`, sin fixtures).
 Cada test se vio en ROJO con su sabotaje (ver reporte de QA): el sabotaje de la tabla
-ADAPTIVE_TOKENS y de pick_text ocurre en memoria sobre el módulo cargado (nunca se edita
-tools/gen-palette.py en disco).
+ADAPTIVE_TOKENS, de pick_text y de check-contrast.backgrounds_for ocurre en memoria sobre el
+módulo cargado (nunca se edita tools/gen-palette.py ni tools/check-contrast.py en disco).
 """
 from __future__ import annotations
 
 import importlib.util
+import re
 import subprocess
 import sys
 import tomllib
@@ -66,8 +73,20 @@ def colors_xml_for(theme_id: str) -> Path:
 
 
 def color_names(xml: Path) -> list[str]:
-    import re
     return re.findall(r'<color name="([^"]+)"', xml.read_text())
+
+
+def xml_colors(xml: Path) -> dict[str, str]:
+    """name -> #rrggbb de un colors.xml versionado (sin pasar por gen-palette.py)."""
+    return dict(re.findall(r'<color name="([^"]+)">(#[0-9a-fA-F]{6})</color>', xml.read_text()))
+
+
+def load_check():
+    """Carga tools/check-contrast.py como módulo fresco (incluye su load_gen() propio)."""
+    spec = importlib.util.spec_from_file_location("check_contrast_i26", CHECK)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def light_theme_ids() -> list[str]:
@@ -132,8 +151,8 @@ def test_i26_sabotaje_sin_pick_text_rompe_contraste():
     for theme_id in ids:
         theme = tomllib.loads((THEMES / theme_id / "theme.toml").read_text())
         pal = gp.palette(theme)
-        for name, (preferred, bg_token) in gp.ADAPTIVE_TOKENS.items():
-            if gp.contrast(pal[name], pal[bg_token]) < 4.5:
+        for name, (preferred, bg_tokens) in gp.ADAPTIVE_TOKENS.items():
+            if any(gp.contrast(pal[name], pal[bg_token]) < 4.5 for bg_token in bg_tokens):
                 bad.append((theme_id, name))
     assert bad, (
         "sabotaje sin efecto esperado: sin pick_text, algún on_* de un tema light debía "
@@ -212,3 +231,137 @@ def test_i26_c4_nombres_colors_xml_x9_en_orden():
             f"{xml.relative_to(REPO)}: nombres != tools/system-colors.txt en el mismo orden "
             f"(faltan={sorted(set(want) - set(got))} sobran={sorted(set(got) - set(want))})"
         )
+
+
+# --- H1 (ronda 2) · on_<rol>_fixed mide contra *_fixed Y *_fixed_dim ----------
+
+FIXED_ROLES = ("primary", "secondary", "tertiary")
+
+
+def test_i26_h1_on_fixed_mide_contra_fixed_y_fixed_dim():
+    """Guardián de audit-26 H1: para cada tema (x9, colors.xml versionado) y cada rol
+    primary/secondary/tertiary, system_on_<rol>_fixed contrasta >= 4.5 contra system_<rol>_fixed
+    Y contra system_<rol>_fixed_dim (ColorSpec2021.java:763-771: el texto fixed se lee sobre
+    AMBOS, no solo sobre su homónimo).
+    """
+    gp = load_gen()
+    for toml in theme_tomls():
+        theme_id = toml.parent.name
+        colors = xml_colors(colors_xml_for(theme_id))
+        for rol in FIXED_ROLES:
+            onf = colors[f"system_on_{rol}_fixed"]
+            for bg_name in (f"system_{rol}_fixed", f"system_{rol}_fixed_dim"):
+                ratio = gp.contrast(onf, colors[bg_name])
+                assert ratio >= 4.5, (
+                    f"{theme_id}: system_on_{rol}_fixed={onf} vs {bg_name}={colors[bg_name]}: "
+                    f"{ratio:.2f} < 4.5 (H1)"
+                )
+
+
+def test_i26_h1_backgrounds_for_incluye_fixed_dim():
+    cc = load_check()
+    for rol in FIXED_ROLES:
+        bgs = cc.backgrounds_for(f"system_on_{rol}_fixed")
+        assert f"system_{rol}_fixed_dim" in bgs, (
+            f"check-contrast.backgrounds_for(system_on_{rol}_fixed) perdió system_{rol}_fixed_dim: {bgs}"
+        )
+        assert f"system_{rol}_fixed" in bgs, (
+            f"check-contrast.backgrounds_for(system_on_{rol}_fixed) perdió su homónimo system_{rol}_fixed: {bgs}"
+        )
+
+
+def test_i26_h1_sabotaje_adaptive_tokens_sin_fixed_dim_da_rojo():
+    """Quitar system_<rol>_fixed_dim de la tupla-fondo de on_<rol>_fixed en ADAPTIVE_TOKENS
+    (las 3 filas _fixed, no _fixed_variant) deja a pick_text sin ese fondo que cumplir: en
+    rose-pine, el on_<rol>_fixed resultante cae por debajo de 4.5 contra *_fixed_dim -> rojo.
+
+    Monkeypatch en memoria sobre un módulo recién cargado; nunca toca tools/gen-palette.py.
+    """
+    gp = load_gen()
+    for rol in FIXED_ROLES:
+        name = f"system_on_{rol}_fixed"
+        preferred, bg_tokens = gp.ADAPTIVE_TOKENS[name]
+        assert f"system_{rol}_fixed_dim" in bg_tokens, f"{name}: ya no tenía fixed_dim que quitar"
+        gp.ADAPTIVE_TOKENS[name] = (preferred, (f"system_{rol}_fixed",))  # sabotaje: solo el homónimo
+
+    theme = tomllib.loads((THEMES / "rose-pine" / "theme.toml").read_text())
+    pal = gp.palette(theme)
+    bad = []
+    for rol in FIXED_ROLES:
+        name = f"system_on_{rol}_fixed"
+        dim = pal[f"system_{rol}_fixed_dim"]
+        if gp.contrast(pal[name], dim) < 4.5:
+            bad.append(rol)
+    assert bad, (
+        "sabotaje sin efecto esperado: sin fixed_dim en ADAPTIVE_TOKENS, rose-pine debía dar "
+        "algún on_*_fixed < 4.5 contra *_fixed_dim"
+    )
+
+
+def test_i26_h1_sabotaje_backgrounds_for_regla_vieja_pierde_el_par():
+    """Si check-contrast.backgrounds_for volviera a la regla vieja (on_<rol>_fixed solo
+    empareja con su homónimo), el guardián basado en PAIRS perdería justo el par que detectó
+    H1 (on_<rol>_fixed vs <rol>_fixed_dim) para los 3 roles -> la regresión pasaría en
+    silencio. Se demuestra reconstruyendo los PAIRS derivados con la regla vieja monkeypatcheada
+    y comprobando que ese par desaparece.
+
+    Monkeypatch en memoria sobre un módulo recién cargado; nunca toca tools/check-contrast.py.
+    """
+    cc = load_check()
+    original = cc.backgrounds_for
+
+    def regla_vieja(name):
+        if name.endswith("_fixed") and not name.endswith("_fixed_variant") and name.startswith("system_on_"):
+            return [name.replace("system_on_", "system_")]
+        return original(name)
+
+    pairs_nuevos = set(cc.derive_pairs(cc.NAMES))
+    cc.backgrounds_for = regla_vieja
+    pairs_viejos = set(cc.derive_pairs(cc.NAMES))
+
+    perdidos = {
+        (fg, bg, kind) for (fg, bg, kind) in pairs_nuevos - pairs_viejos
+        if fg.endswith("_fixed") and not fg.endswith("_fixed_variant") and bg.endswith("_fixed_dim")
+    }
+    assert perdidos, (
+        "sabotaje sin efecto esperado: la regla vieja de backgrounds_for debía perder el par "
+        "on_<rol>_fixed vs <rol>_fixed_dim para los 3 roles"
+    )
+    assert {p[0] for p in perdidos} == {f"system_on_{r}_fixed" for r in FIXED_ROLES}
+
+
+# --- ADAPTIVE_TOKENS == check-contrast.backgrounds_for (las 20 filas) --------
+
+def test_i26_adaptive_tokens_coincide_con_backgrounds_for():
+    """Cada fila de gen-palette.ADAPTIVE_TOKENS tiene exactamente los fondos que
+    check-contrast.backgrounds_for calcula para ese mismo nombre — las dos tablas no deben
+    poder divergir en silencio (es justo lo que ocultó H1 en la ronda 1)."""
+    gp = load_gen()
+    cc = load_check()
+    assert len(gp.ADAPTIVE_TOKENS) == 20, f"se esperaban 20 filas, hay {len(gp.ADAPTIVE_TOKENS)}"
+    for name, (preferred, bg_tokens) in gp.ADAPTIVE_TOKENS.items():
+        want = cc.backgrounds_for(name)
+        assert list(bg_tokens) == want, (
+            f"{name}: ADAPTIVE_TOKENS trae {list(bg_tokens)} pero backgrounds_for trae {want}"
+        )
+
+
+def test_i26_sabotaje_adaptive_tokens_diverge_de_backgrounds_for_da_rojo():
+    """Si una fila de ADAPTIVE_TOKENS se desincroniza de backgrounds_for (p. ej. reordenada o
+    con un fondo de menos), el test de arriba debe notarlo -> rojo.
+
+    Monkeypatch en memoria sobre un módulo recién cargado; nunca toca tools/gen-palette.py.
+    """
+    gp = load_gen()
+    cc = load_check()
+    name = "system_on_primary_fixed"
+    preferred, bg_tokens = gp.ADAPTIVE_TOKENS[name]
+    gp.ADAPTIVE_TOKENS[name] = (preferred, bg_tokens[:1])  # sabotaje: quita system_primary_fixed_dim
+
+    divergentes = [
+        n for n, (p, bgs) in gp.ADAPTIVE_TOKENS.items() if list(bgs) != cc.backgrounds_for(n)
+    ]
+    assert divergentes == [name], (
+        f"sabotaje sin efecto esperado: {name} debía quedar como única fila divergente, "
+        f"divergentes={divergentes}"
+    )
