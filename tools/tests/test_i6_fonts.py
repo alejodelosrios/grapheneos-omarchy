@@ -44,7 +44,7 @@ FONT_CFG = REPO / "overlay" / "OmarchyFontOverlay" / "res" / "values" / "config.
 FONTS_DIR = REPO / "fonts"
 CUSTOMIZATION = FONTS_DIR / "fonts_customization.xml"
 
-N_TEMAS = 6  # design-6 §1 S1/S3: los 6 temas actuales
+MIN_TEMAS = 9  # design-26: 6 oscuros + >= 3 light, ya no un número fijo
 FONT = "jetbrains-mono-nerd"
 FONT_MEDIUM = "jetbrains-mono-nerd-medium"
 
@@ -109,7 +109,7 @@ def test_criterio_s3_font_en_los_seis_theme_toml():
     Orden del PM / design-6 §0.3 y §2 fila 5. La clave es declarativa para OmarchyTheme (#9).
     """
     tomls = theme_tomls()
-    assert len(tomls) == N_TEMAS, f"esperaba {N_TEMAS} themes/*/theme.toml, hay {len(tomls)}"
+    assert len(tomls) >= MIN_TEMAS, f"esperaba >= {MIN_TEMAS} themes/*/theme.toml, hay {len(tomls)}"
     for toml in tomls:
         theme = tomllib.loads(toml.read_text())
         android = theme.get("android")
@@ -130,8 +130,8 @@ def test_criterio_s3_paletas_regeneradas_identicas():
     """
     tomls = {t.parent.name: t for t in theme_tomls()}
     xmls = colors_xmls()
-    assert len(xmls) == N_TEMAS, f"esperaba {N_TEMAS} colors.xml, hay {len(xmls)}"
-    assert len(tomls) == N_TEMAS, f"esperaba {N_TEMAS} theme.toml, hay {len(tomls)}"
+    assert len(xmls) >= MIN_TEMAS, f"esperaba >= {MIN_TEMAS} colors.xml, hay {len(xmls)}"
+    assert len(tomls) >= MIN_TEMAS, f"esperaba >= {MIN_TEMAS} theme.toml, hay {len(tomls)}"
     for xml in xmls:
         tid = xml.relative_to(REPO / "overlay" / "themes").parts[0]
         assert tid in tomls, f"{xml.relative_to(REPO)}: sin themes/{tid}/theme.toml"
@@ -155,7 +155,7 @@ def test_criterio_s3_clave_font_inerte_para_paletas():
     """
     gp = load_gen()
     tomls = theme_tomls()
-    assert len(tomls) == N_TEMAS, f"esperaba {N_TEMAS} temas, hay {len(tomls)}"
+    assert len(tomls) >= MIN_TEMAS, f"esperaba >= {MIN_TEMAS} temas, hay {len(tomls)}"
     for toml in tomls:
         theme = tomllib.loads(toml.read_text())
         base = palette_de(gp, theme)

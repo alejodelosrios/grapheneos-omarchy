@@ -314,17 +314,52 @@ def test_i9_s5_omarchy_mk_ya_no_dice_shape_font_inmutables():
 
 
 def test_i9_s5_config_xml_identico_a_develop_y_shape_font_mutables():
-    diff = subprocess.run(
-        ["git", "diff", "--quiet", "origin/develop", "--", "overlay/config/config.xml"],
-        cwd=REPO,
+    """design-26: i9 exigía config.xml idéntico a develop; i26 trae altas legítimas de
+    palette para los temas nuevos. Se mantiene estricto de otra forma: cada línea de
+    origin/develop sigue ahí sin tocar, y toda línea añadida es un
+    `<overlay package="org.omarchy.palette.<x>" mutable="true" enabled="false" />` de un
+    tema real (themes/<id>/theme.toml existe), con un único enabled="true" en todo el
+    fichero y shape/font siempre mutable="true".
+    """
+    THEMES_DIR = REPO / "themes"
+    ours_lines = CONFIG_XML.read_text().splitlines()
+    theirs_lines = git_show(f"origin/develop:{CONFIG_XML.relative_to(REPO)}").splitlines()
+
+    theirs_set = set(theirs_lines)
+    ours_set = set(ours_lines)
+    missing = [ln for ln in theirs_lines if ln not in ours_set]
+    assert not missing, f"config.xml perdió líneas de origin/develop: {missing}"
+
+    added = [ln for ln in ours_lines if ln not in theirs_set]
+    palette_re = re.compile(
+        r'^\s*<overlay package="org\.omarchy\.palette\.([a-z0-9]+)"\s+'
+        r'mutable="true"\s+enabled="(true|false)"\s*/>\s*$'
     )
-    assert diff.returncode == 0, "overlay/config/config.xml difiere de origin/develop"
+    theme_ids = {
+        p.name.replace("-", "") for p in THEMES_DIR.iterdir() if (p / "theme.toml").is_file()
+    }
+    for ln in added:
+        m = palette_re.match(ln)
+        assert m, f"línea añadida a config.xml no es un alta de palette válida: {ln!r}"
+        pkg_id = m.group(1)
+        assert pkg_id in theme_ids, (
+            f"config.xml: org.omarchy.palette.{pkg_id} no corresponde a ningún "
+            f"themes/<id>/theme.toml ({sorted(theme_ids)})"
+        )
+
     text = CONFIG_XML.read_text()
     root = ET.fromstring(text)
-    by_pkg = {o.get("package"): o for o in root.findall("overlay")}
+    overlays = root.findall("overlay")
+    by_pkg = {o.get("package"): o for o in overlays}
     for pkg in ("org.omarchy.overlay.shape", "org.omarchy.overlay.font"):
         assert pkg in by_pkg, f"config.xml sin overlay {pkg}"
         assert by_pkg[pkg].get("mutable") == "true", f"{pkg} no es mutable=\"true\""
+
+    enabled_true = [o.get("package") for o in overlays if o.get("enabled") == "true"]
+    palette_enabled_true = [p for p in enabled_true if p.startswith("org.omarchy.palette.")]
+    assert len(palette_enabled_true) == 1, (
+        f"se esperaba exactamente un org.omarchy.palette.* enabled=\"true\", hay {palette_enabled_true}"
+    )
 
 
 # --- Seguridad · guard de acción antes de goAsync en BootReceiver ----------------

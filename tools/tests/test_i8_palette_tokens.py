@@ -164,7 +164,7 @@ def test_criterio3_contraste_min_4_5():
     el formato nuevo imprime umbrales distintos y líneas «exento».
     """
     tomls = theme_tomls()
-    assert len(tomls) == 6, f"esperaba 6 temas, hay {len(tomls)}"
+    assert len(tomls) >= 9, f"esperaba >= 9 temas, hay {len(tomls)}"
     spec = importlib.util.spec_from_file_location("check_contrast_i8", CHECK)
     cc = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cc)
