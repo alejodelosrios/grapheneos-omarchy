@@ -111,9 +111,17 @@ def backgrounds_for(name):
         return bgs
     if name.startswith("system_on_"):
         rol, mode = _split_mode(name[len("system_on_"):])
+        suffix = f"_{mode}" if mode else ""
         if rol.endswith("_fixed_variant"):
             rol = rol[: -len("_fixed_variant")] + "_fixed_dim"
-        return ["system_" + rol + (f"_{mode}" if mode else "")]
+            return ["system_" + rol + suffix]
+        # H1 (audit-26, ColorSpec2021.java:763-771): on_<rol>_fixed (sin _variant)
+        # tiene DOS fondos en M3 — primaryFixedDim() como fondo principal (setBackground) y
+        # primaryFixed() como segundo fondo (setSecondBackground) — ambos deben leer >= 4.5.
+        if rol.endswith("_fixed"):
+            dim = rol[: -len("_fixed")] + "_fixed_dim"
+            return ["system_" + rol + suffix, "system_" + dim + suffix]
+        return ["system_" + rol + suffix]
     if name.startswith("system_text_") and "_inverse" in name:
         _, mode = _split_mode(name[len("system_text_"):])
         return ["system_inverse_surface" + (f"_{mode}" if mode else "")]
