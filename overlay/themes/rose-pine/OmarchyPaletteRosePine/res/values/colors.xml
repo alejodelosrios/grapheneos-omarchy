@@ -106,13 +106,13 @@
     <color name="system_on_primary_container_dark">#e1dbd5</color>
     <color name="system_on_primary_container_light">#575279</color>
     <color name="system_on_primary_dark">#000000</color>
-    <color name="system_on_primary_fixed">#575279</color>
+    <color name="system_on_primary_fixed">#000000</color>
     <color name="system_on_primary_fixed_variant">#000000</color>
     <color name="system_on_primary_light">#000000</color>
     <color name="system_on_secondary_container_dark">#e1dbd5</color>
     <color name="system_on_secondary_container_light">#575279</color>
     <color name="system_on_secondary_dark">#000000</color>
-    <color name="system_on_secondary_fixed">#575279</color>
+    <color name="system_on_secondary_fixed">#000000</color>
     <color name="system_on_secondary_fixed_variant">#000000</color>
     <color name="system_on_secondary_light">#000000</color>
     <color name="system_on_surface_dark">#575279</color>
@@ -123,7 +123,7 @@
     <color name="system_on_tertiary_container_dark">#e1dbd5</color>
     <color name="system_on_tertiary_container_light">#575279</color>
     <color name="system_on_tertiary_dark">#000000</color>
-    <color name="system_on_tertiary_fixed">#575279</color>
+    <color name="system_on_tertiary_fixed">#000000</color>
     <color name="system_on_tertiary_fixed_variant">#000000</color>
     <color name="system_on_tertiary_light">#000000</color>
     <color name="system_outline_dark">#cecacd</color>

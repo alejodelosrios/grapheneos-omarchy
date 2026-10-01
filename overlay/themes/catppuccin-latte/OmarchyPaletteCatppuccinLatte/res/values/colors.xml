@@ -106,13 +106,13 @@
     <color name="system_on_primary_container_dark">#d7d8dc</color>
     <color name="system_on_primary_container_light">#000000</color>
     <color name="system_on_primary_dark">#ffffff</color>
-    <color name="system_on_primary_fixed">#4c4f69</color>
+    <color name="system_on_primary_fixed">#000000</color>
     <color name="system_on_primary_fixed_variant">#000000</color>
     <color name="system_on_primary_light">#ffffff</color>
     <color name="system_on_secondary_container_dark">#d7d8dc</color>
     <color name="system_on_secondary_container_light">#4c4f69</color>
     <color name="system_on_secondary_dark">#000000</color>
-    <color name="system_on_secondary_fixed">#4c4f69</color>
+    <color name="system_on_secondary_fixed">#000000</color>
     <color name="system_on_secondary_fixed_variant">#000000</color>
     <color name="system_on_secondary_light">#000000</color>
     <color name="system_on_surface_dark">#4c4f69</color>
@@ -123,7 +123,7 @@
     <color name="system_on_tertiary_container_dark">#d7d8dc</color>
     <color name="system_on_tertiary_container_light">#4c4f69</color>
     <color name="system_on_tertiary_dark">#000000</color>
-    <color name="system_on_tertiary_fixed">#4c4f69</color>
+    <color name="system_on_tertiary_fixed">#000000</color>
     <color name="system_on_tertiary_fixed_variant">#000000</color>
     <color name="system_on_tertiary_light">#000000</color>
     <color name="system_outline_dark">#acb0be</color>
