@@ -117,28 +117,10 @@ TOKENS = {
     "system_error_light": ("red",),
     "system_error_container_dark": ("red", 800),
     "system_error_container_light": ("red", 200),
-    # --- on_primarios / on_error (texto oscuro sobre acento) ---
-    "system_on_primary_dark": ("dark_background",),
-    "system_on_primary_light": ("dark_background",),
-    "system_on_primary_container_dark": ("foreground",),
-    "system_on_primary_container_light": ("dark_background",),
-    "system_on_primary_fixed": ("dark_background",),
-    "system_on_primary_fixed_variant": ("dark_background",),
-    "system_on_secondary_dark": ("dark_background",),
-    "system_on_secondary_light": ("dark_background",),
-    "system_on_secondary_container_dark": ("foreground",),
-    "system_on_secondary_container_light": ("dark_background",),
-    "system_on_secondary_fixed": ("dark_background",),
-    "system_on_secondary_fixed_variant": ("dark_background",),
-    "system_on_tertiary_dark": ("dark_background",),
-    "system_on_tertiary_light": ("dark_background",),
-    "system_on_tertiary_container_dark": ("foreground",),
-    "system_on_tertiary_container_light": ("dark_background",),
-    "system_on_tertiary_fixed": ("dark_background",),
-    "system_on_tertiary_fixed_variant": ("dark_background",),
-    # on_error_* -> ADAPTIVE (R2/H2): preferido darker_background
-    "system_on_error_container_dark": ("foreground",),
-    "system_on_error_container_light": ("dark_background",),  # R3: homogéneo con el resto de _light
+    # on_primarios/on_secundarios/on_terciarios/on_error_container -> ADAPTIVE_TOKENS (i26):
+    # misma clave preferida de siempre, pero validada por contraste contra su fondo real
+    # (R2/H2 generalizado: ya no solo on_surface_variant/on_error, también «texto oscuro
+    # sobre acento» para que los temas light no rompan 4.5 contra primary_light etc.)
     # --- inverse_*: contraparte del par (surface,on_surface) / (primary,on_primary) ---
     "system_inverse_surface_dark": ("foreground",),
     "system_inverse_surface_light": ("foreground",),
@@ -201,6 +183,43 @@ ADAPTIVE = {
     "system_on_error_light": ("darker_background", ("red",)),
 }
 
+# i26: igual que ADAPTIVE, pero el fondo ya no es una clave de theme.toml sino uno o más tokens
+# `system_*` ya resueltos en `out` (se calcula tras TOKENS). name -> (clave preferida, tupla de
+# tokens-fondo que TODOS deben superar con >= 4.5 — pick_text ya exige "ok" contra cada uno).
+# Fondo según check-contrast.py:backgrounds_for: system_on_<rol>[_modo] empareja con
+# system_<rol>[_modo].
+# H1 (audit-26): on_<rol>_fixed (sin _variant) tiene DOS fondos en M3, no uno —
+# ColorSpec2021.java:763-771 pone el texto sobre primaryFixedDim() (fondo principal) con
+# primaryFixed() como "second background" (ambos deben leer bien el mismo texto fixed, sin
+# _variant): de medir solo contra *_fixed, rose-pine/catppuccin-latte daban 3.2-4.0 contra
+# *_fixed_dim sin que nada lo detectara.
+# H2 (audit-26): on_<rol>_fixed_variant es la pareja simétrica — M3 pone
+# setBackground(<rol>FixedDim()) + setSecondBackground(<rol>Fixed()), los mismos dos fondos
+# que _fixed pero en el orden opuesto (fixed_dim primero): antes solo se medía contra
+# _fixed_dim, _fixed quedaba sin medir (hoy no fallaba, >= 11.36, pero era un par sin cubrir).
+ADAPTIVE_TOKENS = {
+    "system_on_primary_dark": ("dark_background", ("system_primary_dark",)),
+    "system_on_primary_light": ("dark_background", ("system_primary_light",)),
+    "system_on_primary_container_dark": ("foreground", ("system_primary_container_dark",)),
+    "system_on_primary_container_light": ("dark_background", ("system_primary_container_light",)),
+    "system_on_primary_fixed": ("dark_background", ("system_primary_fixed", "system_primary_fixed_dim")),
+    "system_on_primary_fixed_variant": ("dark_background", ("system_primary_fixed_dim", "system_primary_fixed")),
+    "system_on_secondary_dark": ("dark_background", ("system_secondary_dark",)),
+    "system_on_secondary_light": ("dark_background", ("system_secondary_light",)),
+    "system_on_secondary_container_dark": ("foreground", ("system_secondary_container_dark",)),
+    "system_on_secondary_container_light": ("dark_background", ("system_secondary_container_light",)),
+    "system_on_secondary_fixed": ("dark_background", ("system_secondary_fixed", "system_secondary_fixed_dim")),
+    "system_on_secondary_fixed_variant": ("dark_background", ("system_secondary_fixed_dim", "system_secondary_fixed")),
+    "system_on_tertiary_dark": ("dark_background", ("system_tertiary_dark",)),
+    "system_on_tertiary_light": ("dark_background", ("system_tertiary_light",)),
+    "system_on_tertiary_container_dark": ("foreground", ("system_tertiary_container_dark",)),
+    "system_on_tertiary_container_light": ("dark_background", ("system_tertiary_container_light",)),
+    "system_on_tertiary_fixed": ("dark_background", ("system_tertiary_fixed", "system_tertiary_fixed_dim")),
+    "system_on_tertiary_fixed_variant": ("dark_background", ("system_tertiary_fixed_dim", "system_tertiary_fixed")),
+    "system_on_error_container_dark": ("foreground", ("system_error_container_dark",)),
+    "system_on_error_container_light": ("dark_background", ("system_error_container_light",)),  # R3
+}
+
 SYSTEM_COLORS_TXT = Path(__file__).with_name("system-colors.txt")
 HEX_RE = re.compile(r"#[0-9a-fA-F]{6}")
 TEXT_CANDIDATES = ("foreground", "bright_foreground", "light_foreground",
@@ -214,6 +233,8 @@ def used_color_keys():
     for preferred, bg_keys in ADAPTIVE.values():
         keys.add(preferred)
         keys.update(bg_keys)
+    for preferred, _bg_token in ADAPTIVE_TOKENS.values():
+        keys.add(preferred)
     return keys
 
 def hex2rgb(h): h = h.lstrip("#"); return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
@@ -237,13 +258,15 @@ def contrast(h1, h2):
     a, b = sorted((_lum(hex2rgb(h1)), _lum(hex2rgb(h2))), reverse=True)
     return (a + 0.05) / (b + 0.05)
 
-def pick_text(theme, preferred, bg_keys):
+def pick_text(theme, preferred, bgs):
     """R2/H2 «claro sobre oscuro y viceversa»: la clave preferida del diseño si alcanza 4.5
     contra TODOS sus fondos; si no, el primer candidato que lo haga (texto claro del tema,
     luego oscuro; extremos lineales tone(fondo, 0)=blanco / tone(fondo, 1000)=negro al final:
     el mejor de blanco/negro nunca baja de 4.58 contra ningún fondo). Si ninguno sirve, el
-    tema es inviable con mezcla lineal -> exit != 0 (REGLA DURA: reportar, sin --hct)."""
-    bgs = [theme[k] for k in bg_keys]
+    tema es inviable con mezcla lineal -> exit != 0 (REGLA DURA: reportar, sin --hct).
+
+    `bgs` ya son hex (`#rrggbb`), no claves de theme.toml: i26 reutiliza esto para fondos que
+    son tokens `system_*` calculados (tone/mix), no valores directos de theme.toml."""
 
     def ok(v):
         return all(contrast(v, b) >= 4.5 for b in bgs)
@@ -257,7 +280,7 @@ def pick_text(theme, preferred, bg_keys):
         v = rgb2hex(tone(hex2rgb(bgs[0]), t))
         if ok(v):
             return v
-    sys.exit(f"gen-palette: sin texto >= 4.5 sobre {bg_keys} con mezcla lineal — reportar (sin --hct)")
+    sys.exit(f"gen-palette: sin texto >= 4.5 sobre {bgs} con mezcla lineal — reportar (sin --hct)")
 
 def expected_tokens():
     return [ln for ln in SYSTEM_COLORS_TXT.read_text().splitlines() if ln.strip()]
@@ -283,9 +306,13 @@ def palette(theme):
     for name, spec in TOKENS.items():
         key = spec[0]
         out[name] = rgb2hex(tone(hex2rgb(theme[key]), spec[1])) if len(spec) == 2 else theme[key]
+    # i26: elección por contraste de on_{primary,secondary,tertiary}*/on_error_container_* contra
+    # su fondo ya calculado arriba (ADAPTIVE_TOKENS); va tras TOKENS porque necesita `out` poblado.
+    for name, (preferred, bg_tokens) in ADAPTIVE_TOKENS.items():
+        out[name] = pick_text(theme, preferred, [out[t] for t in bg_tokens])
     # R2/H2 (audit-8): elección por contraste para on_surface_variant_* y on_error_*
     for name, (preferred, bg_keys) in ADAPTIVE.items():
-        out[name] = pick_text(theme, preferred, bg_keys)
+        out[name] = pick_text(theme, preferred, [theme[k] for k in bg_keys])
     # regla 100% cobertura (design-8): todo token de system-colors.txt mapeado, nada sobrante
     want = expected_tokens()
     missing, extra = sorted(set(want) - set(out)), sorted(set(out) - set(want))
@@ -312,6 +339,18 @@ def selfcheck():
     assert p["system_on_surface_dark"] == "#a9b1d6" and p["system_surface_dark"] == "#1a1b26"
     assert p["system_primary_fixed"] == rgb2hex(tone(hex2rgb("#7aa2f7"), 150))
     assert p["system_primary_container_dark"] == rgb2hex(tone(hex2rgb("#7aa2f7"), 800))
+    # i26: tema sintético claro con "dark_background" roto a propósito (blanco, falla contra un
+    # fondo también claro) para probar que ADAPTIVE_TOKENS cae al candidato oscuro (foreground)
+    # en vez de colar la preferida sin validar — texto oscuro sobre primary_container_light >= 4.5.
+    light = palette({"accent": "#8839ef", "magenta": "#ea76cb", "cyan": "#04a5e5",
+                      "background": "#eff1f5", "lighter_background": "#e6e9ef",
+                      "red": "#d20f39", "dark_background": "#ffffff",
+                      "darker_background": "#060606", "foreground": "#4c4f69",
+                      "bright_foreground": "#4c4f69", "light_foreground": "#5c5f77",
+                      "muted": "#9ca0b0"})
+    assert light["system_on_primary_container_light"] != "#ffffff"  # no coló la preferida rota
+    assert contrast(light["system_on_primary_container_light"],
+                     light["system_primary_container_light"]) >= 4.5
 
 if __name__ == "__main__":
     selfcheck()

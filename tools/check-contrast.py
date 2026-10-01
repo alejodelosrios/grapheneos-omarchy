@@ -7,8 +7,12 @@ gen-palette: every text token must find its background IN THE LIST or the check 
 naming the token.
 
   * system_on_<rol>[_<mode>]      -> system_<rol>[_<mode>]       (same mode)
-  * system_on_<rol>_fixed_variant -> system_<rol>_fixed_dim      (M3: the less-emphasised
-    "variant" text sits on the dim fixed container; decided + documented in the i8 PR)
+  * system_on_<rol>_fixed         -> system_<rol>_fixed AND system_<rol>_fixed_dim (audit-26
+    H1: M3's ColorSpec2021.java sets <rol>FixedDim() as background and <rol>Fixed() as second
+    background — both must read >= 4.5, two measured pairs)
+  * system_on_<rol>_fixed_variant -> system_<rol>_fixed_dim AND system_<rol>_fixed (audit-26
+    H2: the symmetric pair — same two M3 backgrounds as _fixed, same order gen-palette.py
+    uses in ADAPTIVE_TOKENS)
   * system_text_*_inverse[*]      -> system_inverse_surface[_<mode>]  (snackbars/toasts:
     M3 pairs textColor*Inverse with inverseSurface, same mode)
   * system_inverse_on_<rol>[..]   -> system_inverse_<rol>[..]    (same mode)
@@ -111,9 +115,20 @@ def backgrounds_for(name):
         return bgs
     if name.startswith("system_on_"):
         rol, mode = _split_mode(name[len("system_on_"):])
+        suffix = f"_{mode}" if mode else ""
+        # H1/H2 (audit-26, ColorSpec2021.java:763-771): on_<rol>_fixed y on_<rol>_fixed_variant
+        # tienen los MISMOS dos fondos en M3 (setBackground(<rol>FixedDim()) +
+        # setSecondBackground(<rol>Fixed())); solo cambia el orden en que gen-palette.py los
+        # lista en ADAPTIVE_TOKENS (fixed primero para _fixed, fixed_dim primero para
+        # _fixed_variant) — el orden no afecta el resultado (pick_text exige "ok" contra TODOS),
+        # pero se mantiene igual aquí para que list(bgs) == backgrounds_for(name) sea exacto.
         if rol.endswith("_fixed_variant"):
-            rol = rol[: -len("_fixed_variant")] + "_fixed_dim"
-        return ["system_" + rol + (f"_{mode}" if mode else "")]
+            base = rol[: -len("_fixed_variant")]
+            return ["system_" + base + "_fixed_dim" + suffix, "system_" + base + "_fixed" + suffix]
+        if rol.endswith("_fixed"):
+            dim = rol[: -len("_fixed")] + "_fixed_dim"
+            return ["system_" + rol + suffix, "system_" + dim + suffix]
+        return ["system_" + rol + suffix]
     if name.startswith("system_text_") and "_inverse" in name:
         _, mode = _split_mode(name[len("system_text_"):])
         return ["system_inverse_surface" + (f"_{mode}" if mode else "")]

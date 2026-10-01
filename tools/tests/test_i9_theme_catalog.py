@@ -133,14 +133,14 @@ def test_i9_s1_regexes_extraidas_del_kt():
 def test_i9_s1_los_seis_theme_toml_se_aceptan():
     regexes = kt_regexes()
     tomls = theme_tomls()
-    assert len(tomls) == 6, f"esperaba 6 themes/*/theme.toml, hay {len(tomls)}"
+    assert len(tomls) >= 9, f"esperaba >= 9 themes/*/theme.toml, hay {len(tomls)}"
     for toml in tomls:
         text = toml.read_text()
         values = parse(text, regexes)
         assert values is not None, f"{toml.relative_to(REPO)}: el parser Python (regex del .kt) lo rechaza"
         upstream = tomllib.loads(text)
         assert values["name"] == upstream["name"], toml
-        assert values["mode"] == upstream["mode"] == "dark", toml
+        assert values["mode"] == upstream["mode"] in ("dark", "light"), toml
         assert values["android.palette_package"] == upstream["android"]["palette_package"], toml
         # backgrounds se compara aparte en test_i9_s1_tokyo_night_backgrounds (clave calificada
         # "android.backgrounds", extraída del .kt con backgrounds_key_from).

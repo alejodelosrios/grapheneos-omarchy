@@ -16,10 +16,13 @@ PRODUCT_PACKAGES += \
 # (category android.theme.customization.system_palette, driven by OmarchyTheme)
 PRODUCT_PACKAGES += \
     OmarchyPaletteCatppuccin \
+    OmarchyPaletteCatppuccinLatte \
     OmarchyPaletteEverforest \
+    OmarchyPaletteFlexokiLight \
     OmarchyPaletteGruvbox \
     OmarchyPaletteKanagawa \
     OmarchyPaletteNord \
+    OmarchyPaletteRosePine \
     OmarchyPaletteTokyoNight
 
 # Theme service + picker + QS tile + ContentProvider for third-party apps

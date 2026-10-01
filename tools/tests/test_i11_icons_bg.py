@@ -131,7 +131,7 @@ def theme_android_table(theme_id: str) -> dict:
 
 def test_i11_s1_seis_temas_icon_shape_y_themed_icons():
     theme_ids = sorted(p.name for p in THEMES_DIR.iterdir() if (p / "theme.toml").is_file())
-    assert len(theme_ids) == 6, f"se esperaban 6 themes/*/theme.toml, hay {theme_ids}"
+    assert len(theme_ids) >= 9, f"se esperaban >= 9 themes/*/theme.toml, hay {theme_ids}"
     for theme_id in theme_ids:
         android = theme_android_table(theme_id)
         shape = android["icon_shape"]

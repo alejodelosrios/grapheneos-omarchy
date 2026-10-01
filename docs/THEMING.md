@@ -38,6 +38,24 @@ tools/gen-palette.py themes/nord/theme.toml > overlay/themes/nord/OmarchyPalette
 # + línea en omarchy.mk (PRODUCT_PACKAGES) y en overlay/config/config.xml (mutable, enabled=false)
 ```
 
+El atajo es `tools/new-theme.sh <id>` (`tools/new-theme.sh:2-22`): descarga upstream, valida, genera RRO y altas en omarchy.mk y config.xml en un paso.
+
+### Temas incluidos
+
+| id | mode | paquete RRO |
+|---|---|---|
+| catppuccin | dark | org.omarchy.palette.catppuccin |
+| catppuccin-latte | light | org.omarchy.palette.catppuccinlatte |
+| everforest | dark | org.omarchy.palette.everforest |
+| flexoki-light | light | org.omarchy.palette.flexokilight |
+| gruvbox | dark | org.omarchy.palette.gruvbox |
+| kanagawa | dark | org.omarchy.palette.kanagawa |
+| nord | dark | org.omarchy.palette.nord |
+| rose-pine | light | org.omarchy.palette.rosepine |
+| tokyo-night | dark | org.omarchy.palette.tokyonight |
+
+Con `mode = "light"`, `OmarchyTheme` pone el sistema en modo claro (`UiModeManager.setNightMode(NO)`, `apps/OmarchyTheme/src/org/omarchy/theme/ThemeSwitcher.kt:110`). **El aspecto real en modo claro está pendiente de verificación en el Pixel.**
+
 Mapeo de roles (`tools/gen-palette.py` → `ROLES`):
 
 | AOSP | theme.toml | Ejemplo Tokyo Night |
@@ -51,6 +69,8 @@ Mapeo de roles (`tools/gen-palette.py` → `ROLES`):
 El tono 500 es el color exacto; 0→blanco y 1000→negro por mezcla lineal (v0). Las apps Material You
 leen estos tokens: **Launcher3, Settings, SystemUI, el shade de notificaciones y cualquier app con
 dynamic color cambian con el tema sin conocer Omarchy**.
+
+Los textos `system_on_{primary,secondary,tertiary}{,_container,_fixed,_fixed_variant}_*` y `system_on_error_container_*` no tienen clave fija: se eligen por contraste contra su relleno ya calculado —los `_fixed` y `_fixed_variant` contra `_fixed` y `_fixed_dim` a la vez, como en Material 3— (tabla `ADAPTIVE_TOKENS`, `tools/gen-palette.py:200-221`; función `pick_text`, `tools/gen-palette.py:261-283`): la clave preferida si da ≥ 4.5 de contraste WCAG, si no el primer candidato de texto del tema (`TEXT_CANDIDATES`, `tools/gen-palette.py:225-226`), si no blanco/negro extremos. Si nada llega a 4.5, el generador aborta. Esto es lo que deja legibles los temas claros; `tools/check-contrast.py` lo mide en los dos modos.
 
 ## Cambiar de tema (lo que hace `OmarchyTheme`, = `omarchy-theme-set`)
 
