@@ -70,7 +70,7 @@ El tono 500 es el color exacto; 0→blanco y 1000→negro por mezcla lineal (v0)
 leen estos tokens: **Launcher3, Settings, SystemUI, el shade de notificaciones y cualquier app con
 dynamic color cambian con el tema sin conocer Omarchy**.
 
-Los textos `system_on_{primary,secondary,tertiary}{,_container,_fixed,_fixed_variant}_*` y `system_on_error_container_*` no tienen clave fija: se eligen por contraste contra su relleno ya calculado (tabla `ADAPTIVE_TOKENS`, `tools/gen-palette.py:190-211`; función `pick_text`, `tools/gen-palette.py:251-273`): la clave preferida si da ≥ 4.5 de contraste WCAG, si no el primer candidato de texto del tema (`TEXT_CANDIDATES`, `tools/gen-palette.py:215-216`), si no blanco/negro extremos. Si nada llega a 4.5, el generador aborta. Esto es lo que deja legibles los temas claros; `tools/check-contrast.py` lo mide en los dos modos.
+Los textos `system_on_{primary,secondary,tertiary}{,_container,_fixed,_fixed_variant}_*` y `system_on_error_container_*` no tienen clave fija: se eligen por contraste contra su relleno ya calculado —los `_fixed` y `_fixed_variant` contra `_fixed` y `_fixed_dim` a la vez, como en Material 3— (tabla `ADAPTIVE_TOKENS`, `tools/gen-palette.py:200-221`; función `pick_text`, `tools/gen-palette.py:261-283`): la clave preferida si da ≥ 4.5 de contraste WCAG, si no el primer candidato de texto del tema (`TEXT_CANDIDATES`, `tools/gen-palette.py:225-226`), si no blanco/negro extremos. Si nada llega a 4.5, el generador aborta. Esto es lo que deja legibles los temas claros; `tools/check-contrast.py` lo mide en los dos modos.
 
 ## Cambiar de tema (lo que hace `OmarchyTheme`, = `omarchy-theme-set`)
 
