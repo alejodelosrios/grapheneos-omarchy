@@ -183,31 +183,37 @@ ADAPTIVE = {
     "system_on_error_light": ("darker_background", ("red",)),
 }
 
-# i26: igual que ADAPTIVE, pero el fondo ya no es una clave de theme.toml sino un token
-# `system_*` ya resuelto en `out` (se calcula tras TOKENS). name -> (clave preferida, token-fondo).
-# Fondo según check-contrast.py:backgrounds_for (:112-116): system_on_<rol>[_modo] empareja con
+# i26: igual que ADAPTIVE, pero el fondo ya no es una clave de theme.toml sino uno o más tokens
+# `system_*` ya resueltos en `out` (se calcula tras TOKENS). name -> (clave preferida, tupla de
+# tokens-fondo que TODOS deben superar con >= 4.5 — pick_text ya exige "ok" contra cada uno).
+# Fondo según check-contrast.py:backgrounds_for: system_on_<rol>[_modo] empareja con
 # system_<rol>[_modo], salvo _fixed_variant -> _fixed_dim.
+# H1 (audit-26): on_<rol>_fixed (sin _variant) tiene DOS fondos en M3, no uno —
+# ColorSpec2021.java:763-771 pone el texto sobre primaryFixedDim() (fondo principal) con
+# primaryFixed() como "second background" (ambos deben leer bien el mismo texto fixed, sin
+# _variant): de medir solo contra *_fixed, rose-pine/catppuccin-latte daban 3.2-4.0 contra
+# *_fixed_dim sin que nada lo detectara.
 ADAPTIVE_TOKENS = {
-    "system_on_primary_dark": ("dark_background", "system_primary_dark"),
-    "system_on_primary_light": ("dark_background", "system_primary_light"),
-    "system_on_primary_container_dark": ("foreground", "system_primary_container_dark"),
-    "system_on_primary_container_light": ("dark_background", "system_primary_container_light"),
-    "system_on_primary_fixed": ("dark_background", "system_primary_fixed"),
-    "system_on_primary_fixed_variant": ("dark_background", "system_primary_fixed_dim"),
-    "system_on_secondary_dark": ("dark_background", "system_secondary_dark"),
-    "system_on_secondary_light": ("dark_background", "system_secondary_light"),
-    "system_on_secondary_container_dark": ("foreground", "system_secondary_container_dark"),
-    "system_on_secondary_container_light": ("dark_background", "system_secondary_container_light"),
-    "system_on_secondary_fixed": ("dark_background", "system_secondary_fixed"),
-    "system_on_secondary_fixed_variant": ("dark_background", "system_secondary_fixed_dim"),
-    "system_on_tertiary_dark": ("dark_background", "system_tertiary_dark"),
-    "system_on_tertiary_light": ("dark_background", "system_tertiary_light"),
-    "system_on_tertiary_container_dark": ("foreground", "system_tertiary_container_dark"),
-    "system_on_tertiary_container_light": ("dark_background", "system_tertiary_container_light"),
-    "system_on_tertiary_fixed": ("dark_background", "system_tertiary_fixed"),
-    "system_on_tertiary_fixed_variant": ("dark_background", "system_tertiary_fixed_dim"),
-    "system_on_error_container_dark": ("foreground", "system_error_container_dark"),
-    "system_on_error_container_light": ("dark_background", "system_error_container_light"),  # R3
+    "system_on_primary_dark": ("dark_background", ("system_primary_dark",)),
+    "system_on_primary_light": ("dark_background", ("system_primary_light",)),
+    "system_on_primary_container_dark": ("foreground", ("system_primary_container_dark",)),
+    "system_on_primary_container_light": ("dark_background", ("system_primary_container_light",)),
+    "system_on_primary_fixed": ("dark_background", ("system_primary_fixed", "system_primary_fixed_dim")),
+    "system_on_primary_fixed_variant": ("dark_background", ("system_primary_fixed_dim",)),
+    "system_on_secondary_dark": ("dark_background", ("system_secondary_dark",)),
+    "system_on_secondary_light": ("dark_background", ("system_secondary_light",)),
+    "system_on_secondary_container_dark": ("foreground", ("system_secondary_container_dark",)),
+    "system_on_secondary_container_light": ("dark_background", ("system_secondary_container_light",)),
+    "system_on_secondary_fixed": ("dark_background", ("system_secondary_fixed", "system_secondary_fixed_dim")),
+    "system_on_secondary_fixed_variant": ("dark_background", ("system_secondary_fixed_dim",)),
+    "system_on_tertiary_dark": ("dark_background", ("system_tertiary_dark",)),
+    "system_on_tertiary_light": ("dark_background", ("system_tertiary_light",)),
+    "system_on_tertiary_container_dark": ("foreground", ("system_tertiary_container_dark",)),
+    "system_on_tertiary_container_light": ("dark_background", ("system_tertiary_container_light",)),
+    "system_on_tertiary_fixed": ("dark_background", ("system_tertiary_fixed", "system_tertiary_fixed_dim")),
+    "system_on_tertiary_fixed_variant": ("dark_background", ("system_tertiary_fixed_dim",)),
+    "system_on_error_container_dark": ("foreground", ("system_error_container_dark",)),
+    "system_on_error_container_light": ("dark_background", ("system_error_container_light",)),  # R3
 }
 
 SYSTEM_COLORS_TXT = Path(__file__).with_name("system-colors.txt")
@@ -298,8 +304,8 @@ def palette(theme):
         out[name] = rgb2hex(tone(hex2rgb(theme[key]), spec[1])) if len(spec) == 2 else theme[key]
     # i26: elección por contraste de on_{primary,secondary,tertiary}*/on_error_container_* contra
     # su fondo ya calculado arriba (ADAPTIVE_TOKENS); va tras TOKENS porque necesita `out` poblado.
-    for name, (preferred, bg_token) in ADAPTIVE_TOKENS.items():
-        out[name] = pick_text(theme, preferred, [out[bg_token]])
+    for name, (preferred, bg_tokens) in ADAPTIVE_TOKENS.items():
+        out[name] = pick_text(theme, preferred, [out[t] for t in bg_tokens])
     # R2/H2 (audit-8): elección por contraste para on_surface_variant_* y on_error_*
     for name, (preferred, bg_keys) in ADAPTIVE.items():
         out[name] = pick_text(theme, preferred, [theme[k] for k in bg_keys])
